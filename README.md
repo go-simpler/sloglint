@@ -10,6 +10,6 @@ Ensure consistent code-style when using `log/slog`.
 ## 🚀 Features
 
 * Forbid mixing key-value pairs and attributes in a single function call
-* [WIP] Enforce using either key-value pairs or attributes for the entire project
+* Enforce using either key-value pairs or attributes for the entire project
 * [WIP] Enforce using constants instead of raw keys
 * [WIP] Enforce putting arguments on separate lines

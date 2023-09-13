@@ -15,7 +15,7 @@ var version = "dev" // injected at build time.
 func main() {
 	// override the builtin -V flag.
 	flag.Var(versionFlag{}, "V", "print version and exit")
-	singlechecker.Main(sloglint.New())
+	singlechecker.Main(sloglint.New(nil))
 }
 
 type versionFlag struct{}

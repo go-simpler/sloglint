@@ -1,4 +1,4 @@
-package tests
+package mixed_args
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 )
 
 func noIssues() {
-	slog.Info("msg")                                         // no arguments.
-	slog.Info("msg", "foo", 1, "bar", 2)                     // key-value pairs only.
-	slog.Info("msg", slog.Int("foo", 1), slog.Int("bar", 2)) // attributes only.
+	slog.Info("msg")
+	slog.Info("msg", "foo", 1, "bar", 2)
+	slog.Info("msg", slog.Int("foo", 1), slog.Int("bar", 2))
 }
 
 func mixedArgs() {
