@@ -2,7 +2,10 @@
 package sloglint
 
 import (
+	"errors"
+	"flag"
 	"go/ast"
+	"strconv"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -10,14 +13,46 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
+type Options struct {
+	KVOnly   bool
+	AttrOnly bool
+}
+
 // New creates a new sloglint analyzer.
-func New() *analysis.Analyzer {
+func New(opts *Options) *analysis.Analyzer {
+	if opts == nil {
+		opts = new(Options)
+	}
 	return &analysis.Analyzer{
 		Name:     "sloglint",
 		Doc:      "ensure consistent code style when using log/slog",
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
-		Run:      run,
+		Flags:    flags(opts),
+		Run: func(pass *analysis.Pass) (any, error) {
+			if opts.KVOnly && opts.AttrOnly {
+				return nil, errors.New("sloglint: incompatible options provided")
+			}
+			run(pass, opts)
+			return nil, nil
+		},
 	}
+}
+
+func flags(opts *Options) flag.FlagSet {
+	fs := flag.NewFlagSet("sloglint", flag.ContinueOnError)
+
+	boolVar := func(value *bool, name, usage string) {
+		fs.BoolFunc(name, usage, func(s string) error {
+			v, err := strconv.ParseBool(s)
+			*value = v
+			return err
+		})
+	}
+
+	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
+	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
+
+	return *fs
 }
 
 // mapping: function name -> arguments position.
@@ -42,7 +77,7 @@ var funcs = map[string]int{
 	"(*log/slog.Logger).ErrorContext": 2,
 }
 
-func run(pass *analysis.Pass) (any, error) {
+func run(pass *analysis.Pass, opts *Options) {
 	visit := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	types := []ast.Node{(*ast.CallExpr)(nil)}
 
@@ -71,10 +106,13 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 		}
 
-		if attrsCount != 0 && attrsCount != len(args) {
+		switch {
+		case opts.KVOnly && attrsCount != 0:
+			pass.Reportf(call.Pos(), "attributes should not be used")
+		case opts.AttrOnly && attrsCount != len(args):
+			pass.Reportf(call.Pos(), "key-value pairs should not be used")
+		case attrsCount != 0 && attrsCount != len(args):
 			pass.Reportf(call.Pos(), "key-value pairs and attributes should not be mixed")
 		}
 	})
-
-	return nil, nil
 }
