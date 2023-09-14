@@ -5,13 +5,11 @@ import (
 	"log/slog"
 )
 
-func noIssues() {
+func tests() {
+	ctx := context.Background()
+
 	slog.Info("msg")
 	slog.Info("msg", slog.Int("foo", 1), slog.Int("bar", 2))
-}
-
-func mixedArgs() {
-	ctx := context.Background()
 
 	slog.Log(ctx, slog.LevelInfo, "msg", "foo", 1, slog.Int("bar", 2)) // want `key-value pairs should not be used`
 	slog.Debug("msg", "foo", 1, slog.Int("bar", 2))                    // want `key-value pairs should not be used`
