@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"go/ast"
+	"go/types"
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
@@ -81,9 +82,9 @@ var funcs = map[string]int{
 
 func run(pass *analysis.Pass, opts *Options) {
 	visit := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	types := []ast.Node{(*ast.CallExpr)(nil)}
+	filter := []ast.Node{(*ast.CallExpr)(nil)}
 
-	visit.Preorder(types, func(node ast.Node) {
+	visit.Preorder(filter, func(node ast.Node) {
 		call := node.(*ast.CallExpr)
 
 		fn := typeutil.StaticCallee(pass.TypesInfo, call)
@@ -124,45 +125,68 @@ func run(pass *analysis.Pass, opts *Options) {
 			pass.Reportf(call.Pos(), "key-value pairs and attributes should not be mixed")
 		}
 
-		const rawKeysReport = "raw keys should not be used"
-
-		if !opts.NoRawKeys {
-			return
-		}
-
-		for _, key := range keys {
-			if !isConst(key) {
-				pass.Reportf(call.Pos(), rawKeysReport)
-				return
-			}
-		}
-
-		for _, attr := range attrs {
-			switch attr := attr.(type) {
-			case *ast.CallExpr: // e.g. slog.Int()
-				builtins := map[string]struct{}{
-					"log/slog.String":   {},
-					"log/slog.Int64":    {},
-					"log/slog.Int":      {},
-					"log/slog.Uint64":   {},
-					"log/slog.Float64":  {},
-					"log/slog.Bool":     {},
-					"log/slog.Time":     {},
-					"log/slog.Duration": {},
-					"log/slog.Group":    {},
-					"log/slog.Any":      {},
-				}
-				fn := typeutil.StaticCallee(pass.TypesInfo, attr)
-				if _, ok := builtins[fn.FullName()]; ok && !isConst(attr.Args[0]) {
-					pass.Reportf(call.Pos(), rawKeysReport)
-					return
-				}
-			}
+		if opts.NoRawKeys && rawKeysUsed(keys, attrs, pass.TypesInfo) {
+			pass.Reportf(call.Pos(), "raw keys should not be used")
 		}
 	})
 }
 
-func isConst(expr ast.Expr) bool {
-	ident, ok := expr.(*ast.Ident)
-	return ok && ident.Obj != nil && ident.Obj.Kind == ast.Con
+func rawKeysUsed(keys, attrs []ast.Expr, info *types.Info) bool {
+	isConst := func(expr ast.Expr) bool {
+		ident, ok := expr.(*ast.Ident)
+		return ok && ident.Obj != nil && ident.Obj.Kind == ast.Con
+	}
+
+	for _, key := range keys {
+		if !isConst(key) {
+			return true
+		}
+	}
+
+	for _, attr := range attrs {
+		switch attr := attr.(type) {
+		case *ast.CallExpr: // e.g. slog.Int()
+			builtins := map[string]struct{}{
+				"log/slog.String":   {},
+				"log/slog.Int64":    {},
+				"log/slog.Int":      {},
+				"log/slog.Uint64":   {},
+				"log/slog.Float64":  {},
+				"log/slog.Bool":     {},
+				"log/slog.Time":     {},
+				"log/slog.Duration": {},
+				"log/slog.Group":    {},
+				"log/slog.Any":      {},
+			}
+			fn := typeutil.StaticCallee(info, attr)
+			if _, ok := builtins[fn.FullName()]; ok && !isConst(attr.Args[0]) {
+				return true
+			}
+
+		case *ast.CompositeLit: // slog.Attr{}
+			isRawKey := func(kv *ast.KeyValueExpr) bool {
+				return kv.Key.(*ast.Ident).Name == "Key" && !isConst(kv.Value)
+			}
+
+			switch len(attr.Elts) {
+			case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
+				kv := attr.Elts[0].(*ast.KeyValueExpr)
+				if isRawKey(kv) {
+					return true
+				}
+			case 2: // slog.Attr{..., ...} | slog.Attr{Key: ..., Value: ...}
+				kv1, ok := attr.Elts[0].(*ast.KeyValueExpr)
+				if ok {
+					kv2 := attr.Elts[1].(*ast.KeyValueExpr)
+					if isRawKey(kv1) || isRawKey(kv2) {
+						return true
+					}
+				} else if !isConst(attr.Elts[0]) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
