@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"go/ast"
+	"go/types"
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
@@ -14,8 +15,9 @@ import (
 )
 
 type Options struct {
-	KVOnly   bool
-	AttrOnly bool
+	KVOnly    bool
+	AttrOnly  bool
+	NoRawKeys bool
 }
 
 // New creates a new sloglint analyzer.
@@ -51,6 +53,7 @@ func flags(opts *Options) flag.FlagSet {
 
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
+	boolVar(&opts.NoRawKeys, "no-raw-keys", "forbid using raw keys")
 
 	return *fs
 }
@@ -79,40 +82,111 @@ var funcs = map[string]int{
 
 func run(pass *analysis.Pass, opts *Options) {
 	visit := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	types := []ast.Node{(*ast.CallExpr)(nil)}
+	filter := []ast.Node{(*ast.CallExpr)(nil)}
 
-	visit.Preorder(types, func(node ast.Node) {
+	visit.Preorder(filter, func(node ast.Node) {
 		call := node.(*ast.CallExpr)
 
-		callee := typeutil.StaticCallee(pass.TypesInfo, call)
-		if callee == nil {
+		fn := typeutil.StaticCallee(pass.TypesInfo, call)
+		if fn == nil {
 			return
 		}
 
-		argsPos, ok := funcs[callee.FullName()]
+		argsPos, ok := funcs[fn.FullName()]
 		if !ok {
 			return
 		}
 
+		// NOTE: we assume that the arguments have already been validated by govet.
 		args := call.Args[argsPos:]
 		if len(args) == 0 {
 			return
 		}
 
-		var attrsCount int
-		for _, arg := range args {
-			if pass.TypesInfo.TypeOf(arg).String() == "log/slog.Attr" {
-				attrsCount++
+		keys := make([]ast.Expr, 0)
+		attrs := make([]ast.Expr, 0)
+
+		for i := 0; i < len(args); i++ {
+			switch pass.TypesInfo.TypeOf(args[i]).String() {
+			case "string":
+				keys = append(keys, args[i])
+				i++ // skip the value.
+			case "log/slog.Attr":
+				attrs = append(attrs, args[i])
 			}
 		}
 
 		switch {
-		case opts.KVOnly && attrsCount != 0:
+		case opts.KVOnly && len(attrs) > 0:
 			pass.Reportf(call.Pos(), "attributes should not be used")
-		case opts.AttrOnly && attrsCount != len(args):
+		case opts.AttrOnly && len(attrs) < len(args):
 			pass.Reportf(call.Pos(), "key-value pairs should not be used")
-		case attrsCount != 0 && attrsCount != len(args):
+		case 0 < len(attrs) && len(attrs) < len(args):
 			pass.Reportf(call.Pos(), "key-value pairs and attributes should not be mixed")
 		}
+
+		if opts.NoRawKeys && rawKeysUsed(keys, attrs, pass.TypesInfo) {
+			pass.Reportf(call.Pos(), "raw keys should not be used")
+		}
 	})
+}
+
+func rawKeysUsed(keys, attrs []ast.Expr, info *types.Info) bool {
+	isConst := func(expr ast.Expr) bool {
+		ident, ok := expr.(*ast.Ident)
+		return ok && ident.Obj != nil && ident.Obj.Kind == ast.Con
+	}
+
+	for _, key := range keys {
+		if !isConst(key) {
+			return true
+		}
+	}
+
+	for _, attr := range attrs {
+		switch attr := attr.(type) {
+		case *ast.CallExpr: // e.g. slog.Int()
+			builtins := map[string]struct{}{
+				"log/slog.String":   {},
+				"log/slog.Int64":    {},
+				"log/slog.Int":      {},
+				"log/slog.Uint64":   {},
+				"log/slog.Float64":  {},
+				"log/slog.Bool":     {},
+				"log/slog.Time":     {},
+				"log/slog.Duration": {},
+				"log/slog.Group":    {},
+				"log/slog.Any":      {},
+			}
+			fn := typeutil.StaticCallee(info, attr)
+			if _, ok := builtins[fn.FullName()]; ok && !isConst(attr.Args[0]) {
+				return true
+			}
+
+		case *ast.CompositeLit: // slog.Attr{}
+			isRawKey := func(kv *ast.KeyValueExpr) bool {
+				return kv.Key.(*ast.Ident).Name == "Key" && !isConst(kv.Value)
+			}
+
+			switch len(attr.Elts) {
+			case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
+				kv := attr.Elts[0].(*ast.KeyValueExpr)
+				if isRawKey(kv) {
+					return true
+				}
+			case 2: // slog.Attr{..., ...} | slog.Attr{Key: ..., Value: ...}
+				kv1, ok := attr.Elts[0].(*ast.KeyValueExpr)
+				if ok {
+					kv2 := attr.Elts[1].(*ast.KeyValueExpr)
+					if isRawKey(kv1) || isRawKey(kv2) {
+						return true
+					}
+				} else if !isConst(attr.Elts[0]) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }

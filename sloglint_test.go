@@ -24,4 +24,9 @@ func TestAnalyzer(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{AttrOnly: true})
 		analysistest.Run(t, testdata, analyzer, "attr_only")
 	})
+
+	t.Run("no raw keys", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{NoRawKeys: true})
+		analysistest.Run(t, testdata, analyzer, "no_raw_keys")
+	})
 }
