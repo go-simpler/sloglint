@@ -12,4 +12,4 @@ Ensure consistent code-style when using `log/slog`.
 * Forbid mixing key-value pairs and attributes in a single function call (default)
 * Enforce using either key-value pairs or attributes for the entire project (optional)
 * Enforce using constants (or custom `slog.Attr` constructors) instead of raw keys (optional)
-* [WIP] Enforce putting arguments on separate lines (optional)
+* Enforce putting arguments on separate lines (optional)

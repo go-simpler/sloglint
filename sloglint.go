@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"strconv"
 
@@ -15,9 +16,10 @@ import (
 )
 
 type Options struct {
-	KVOnly    bool
-	AttrOnly  bool
-	NoRawKeys bool
+	KVOnly         bool
+	AttrOnly       bool
+	NoRawKeys      bool
+	ArgsOnSepLines bool
 }
 
 // New creates a new sloglint analyzer.
@@ -54,6 +56,7 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "forbid using raw keys")
+	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
 
 	return *fs
 }
@@ -125,13 +128,16 @@ func run(pass *analysis.Pass, opts *Options) {
 			pass.Reportf(call.Pos(), "key-value pairs and attributes should not be mixed")
 		}
 
-		if opts.NoRawKeys && rawKeysUsed(keys, attrs, pass.TypesInfo) {
+		if opts.NoRawKeys && rawKeysUsed(pass.TypesInfo, keys, attrs) {
 			pass.Reportf(call.Pos(), "raw keys should not be used")
+		}
+		if opts.ArgsOnSepLines && argsOnSameLine(pass.Fset, call, keys, attrs) {
+			pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 		}
 	})
 }
 
-func rawKeysUsed(keys, attrs []ast.Expr, info *types.Info) bool {
+func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {
 	isConst := func(expr ast.Expr) bool {
 		ident, ok := expr.(*ast.Ident)
 		return ok && ident.Obj != nil && ident.Obj.Kind == ast.Con
@@ -186,6 +192,29 @@ func rawKeysUsed(keys, attrs []ast.Expr, info *types.Info) bool {
 				}
 			}
 		}
+	}
+
+	return false
+}
+
+func argsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Expr) bool {
+	if len(keys)+len(attrs) <= 1 {
+		return false // special case: slog.Info("msg", "key", "value") is ok.
+	}
+
+	l := len(keys) + len(attrs) + 1
+	args := make([]ast.Expr, 0, l)
+	args = append(args, call)
+	args = append(args, keys...)
+	args = append(args, attrs...)
+
+	lines := make(map[int]struct{}, l)
+	for _, arg := range args {
+		line := fset.Position(arg.Pos()).Line
+		if _, ok := lines[line]; ok {
+			return true
+		}
+		lines[line] = struct{}{}
 	}
 
 	return false

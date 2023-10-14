@@ -29,4 +29,9 @@ func TestAnalyzer(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{NoRawKeys: true})
 		analysistest.Run(t, testdata, analyzer, "no_raw_keys")
 	})
+
+	t.Run("arguments on separate lines", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{ArgsOnSepLines: true})
+		analysistest.Run(t, testdata, analyzer, "args_on_sep_lines")
+	})
 }
