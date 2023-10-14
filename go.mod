@@ -1,4 +1,4 @@
-module go.tmz.dev/sloglint
+module go-simpler.org/sloglint
 
 go 1.21
 
