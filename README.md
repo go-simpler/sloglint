@@ -1,9 +1,9 @@
 # sloglint
 
-[![checks](https://github.com/tmzane/sloglint/actions/workflows/checks.yml/badge.svg)](https://github.com/tmzane/sloglint/actions/workflows/checks.yml)
-[![pkg.go.dev](https://pkg.go.dev/badge/go.tmz.dev/sloglint.svg)](https://pkg.go.dev/go.tmz.dev/sloglint)
-[![goreportcard](https://goreportcard.com/badge/go.tmz.dev/sloglint)](https://goreportcard.com/report/go.tmz.dev/sloglint)
-[![codecov](https://codecov.io/gh/tmzane/sloglint/branch/main/graph/badge.svg)](https://codecov.io/gh/tmzane/sloglint)
+[![checks](https://github.com/go-simpler/sloglint/actions/workflows/checks.yml/badge.svg)](https://github.com/go-simpler/sloglint/actions/workflows/checks.yml)
+[![pkg.go.dev](https://pkg.go.dev/badge/go-simpler.org/sloglint.svg)](https://pkg.go.dev/go-simpler.org/sloglint)
+[![goreportcard](https://goreportcard.com/badge/go-simpler.org/sloglint)](https://goreportcard.com/report/go-simpler.org/sloglint)
+[![codecov](https://codecov.io/gh/go-simpler/sloglint/branch/main/graph/badge.svg)](https://codecov.io/gh/go-simpler/sloglint)
 
 Ensure consistent code-style when using `log/slog`.
 
