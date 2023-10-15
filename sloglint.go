@@ -15,11 +15,12 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
+// Options are options for the sloglint analyzer.
 type Options struct {
-	KVOnly         bool
-	AttrOnly       bool
-	NoRawKeys      bool
-	ArgsOnSepLines bool
+	KVOnly         bool // Enforce using key-value pairs only (incompatible with AttrOnly).
+	AttrOnly       bool // Enforce using attributes only (incompatible with KVOnly).
+	NoRawKeys      bool // Enforce using constants instead of raw keys.
+	ArgsOnSepLines bool // Enforce putting arguments on separate lines.
 }
 
 // New creates a new sloglint analyzer.
@@ -30,8 +31,8 @@ func New(opts *Options) *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "sloglint",
 		Doc:      "ensure consistent code style when using log/slog",
-		Requires: []*analysis.Analyzer{inspect.Analyzer},
 		Flags:    flags(opts),
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
 		Run: func(pass *analysis.Pass) (any, error) {
 			if opts.KVOnly && opts.AttrOnly {
 				return nil, errors.New("sloglint: incompatible options provided")
@@ -55,14 +56,13 @@ func flags(opts *Options) flag.FlagSet {
 
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
-	boolVar(&opts.NoRawKeys, "no-raw-keys", "forbid using raw keys")
+	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
 
 	return *fs
 }
 
-// mapping: function name -> arguments position.
-var funcs = map[string]int{
+var slogFuncs = map[string]int{ // funcName:argsPos
 	"log/slog.Log":                    3,
 	"log/slog.Debug":                  1,
 	"log/slog.Info":                   1,
@@ -83,6 +83,19 @@ var funcs = map[string]int{
 	"(*log/slog.Logger).ErrorContext": 2,
 }
 
+var attrFuncs = map[string]struct{}{
+	"log/slog.String":   {},
+	"log/slog.Int64":    {},
+	"log/slog.Int":      {},
+	"log/slog.Uint64":   {},
+	"log/slog.Float64":  {},
+	"log/slog.Bool":     {},
+	"log/slog.Time":     {},
+	"log/slog.Duration": {},
+	"log/slog.Group":    {},
+	"log/slog.Any":      {},
+}
+
 func run(pass *analysis.Pass, opts *Options) {
 	visit := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	filter := []ast.Node{(*ast.CallExpr)(nil)}
@@ -95,7 +108,7 @@ func run(pass *analysis.Pass, opts *Options) {
 			return
 		}
 
-		argsPos, ok := funcs[fn.FullName()]
+		argsPos, ok := slogFuncs[fn.FullName()]
 		if !ok {
 			return
 		}
@@ -106,11 +119,15 @@ func run(pass *analysis.Pass, opts *Options) {
 			return
 		}
 
-		keys := make([]ast.Expr, 0)
-		attrs := make([]ast.Expr, 0)
+		var keys []ast.Expr
+		var attrs []ast.Expr
 
 		for i := 0; i < len(args); i++ {
-			switch pass.TypesInfo.TypeOf(args[i]).String() {
+			typ := pass.TypesInfo.TypeOf(args[i])
+			if typ == nil {
+				continue
+			}
+			switch typ.String() {
 			case "string":
 				keys = append(keys, args[i])
 				i++ // skip the value.
@@ -152,20 +169,8 @@ func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {
 	for _, attr := range attrs {
 		switch attr := attr.(type) {
 		case *ast.CallExpr: // e.g. slog.Int()
-			builtins := map[string]struct{}{
-				"log/slog.String":   {},
-				"log/slog.Int64":    {},
-				"log/slog.Int":      {},
-				"log/slog.Uint64":   {},
-				"log/slog.Float64":  {},
-				"log/slog.Bool":     {},
-				"log/slog.Time":     {},
-				"log/slog.Duration": {},
-				"log/slog.Group":    {},
-				"log/slog.Any":      {},
-			}
 			fn := typeutil.StaticCallee(info, attr)
-			if _, ok := builtins[fn.FullName()]; ok && !isConst(attr.Args[0]) {
+			if _, ok := attrFuncs[fn.FullName()]; ok && !isConst(attr.Args[0]) {
 				return true
 			}
 
