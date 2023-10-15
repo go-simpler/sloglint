@@ -1,8 +1,6 @@
 package no_raw_keys
 
-import (
-	"log/slog"
-)
+import "log/slog"
 
 const foo = "foo"
 
@@ -11,6 +9,7 @@ func Foo(value int) slog.Attr {
 }
 
 func tests() {
+	slog.Info("msg")
 	slog.Info("msg", foo, 1)
 	slog.Info("msg", Foo(1))
 	slog.Info("msg", slog.Int(foo, 1))
