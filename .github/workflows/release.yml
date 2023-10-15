@@ -1,0 +1,18 @@
+name: release
+
+on:
+  push:
+    tags: [ 'v[0-9]+.[0-9]+.[0-9]+' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: true
+        description: The next semantic version to release
+
+jobs:
+  release:
+    uses: go-simpler/.github/.github/workflows/release.yml@main
+    with:
+      version: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+      use-goreleaser: true
