@@ -1,6 +1,6 @@
 module go-simpler.org/sloglint
 
-go 1.21
+go 1.20
 
 require golang.org/x/tools v0.14.0
 
