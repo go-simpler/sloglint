@@ -47,7 +47,7 @@ func flags(opts *Options) flag.FlagSet {
 	fs := flag.NewFlagSet("sloglint", flag.ContinueOnError)
 
 	boolVar := func(value *bool, name, usage string) {
-		fs.BoolFunc(name, usage, func(s string) error {
+		fs.Func(name, usage, func(s string) error {
 			v, err := strconv.ParseBool(s)
 			*value = v
 			return err
