@@ -21,6 +21,7 @@ type Options struct {
 	AttrOnly       bool // Enforce using attributes only (incompatible with KVOnly).
 	NoRawKeys      bool // Enforce using constants instead of raw keys.
 	ArgsOnSepLines bool // Enforce putting arguments on separate lines.
+	ContextOnly    bool // Enforce using methods that take a context.
 }
 
 // New creates a new sloglint analyzer.
@@ -58,6 +59,7 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
+	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that take a context")
 
 	return *fs
 }
@@ -111,6 +113,13 @@ func run(pass *analysis.Pass, opts *Options) {
 		argsPos, ok := slogFuncs[fn.FullName()]
 		if !ok {
 			return
+		}
+
+		if opts.ContextOnly {
+			arg, ok := pass.TypesInfo.Types[call.Args[0]]
+			if ok && arg.Type.String() != "context.Context" {
+				pass.Reportf(call.Pos(), "methods that do not take a context should not be used")
+			}
 		}
 
 		// NOTE: we assume that the arguments have already been validated by govet.

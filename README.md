@@ -26,6 +26,7 @@ The linter has several options, so you can adjust it to your own code style.
 * Enforce using either key-value pairs or attributes for the entire project (optional)
 * Enforce using constants instead of raw keys (optional)
 * Enforce putting arguments on separate lines (optional)
+* Enforce using methods that take a context (optional)
 
 ## 📦 Install
 
@@ -97,6 +98,23 @@ slog.Info("a user has logged in",
     "ip_address", "192.0.2.0",
 )
 ```
+
+### Context only
+
+The `-context-only` flag causes `sloglint` to report the use of any methods that do not take a `context.Context`.
+
+```go
+slog.Info("a user has logged in") // sloglint: methods that do not take a context should not be used"
+```
+
+This report can be fixed by using the equivalent method with a `Context` suffix.
+
+```go
+slog.InfoContext(ctx, "a user has logged in")
+```
+
+The `slog.Handler` implementations in the standard library do not currently utilise the given
+context. However, third-party implementations can create `slog.Attr` instances from the context.
 
 [1]: https://github.com/go-simpler/sloglint/releases
 [2]: https://github.com/go-simpler/sloggen
