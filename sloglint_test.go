@@ -25,6 +25,11 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "attr_only")
 	})
 
+	t.Run("context only", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{ContextOnly: true})
+		analysistest.Run(t, testdata, analyzer, "context_only")
+	})
+
 	t.Run("no raw keys", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{NoRawKeys: true})
 		analysistest.Run(t, testdata, analyzer, "no_raw_keys")
