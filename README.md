@@ -104,7 +104,7 @@ slog.Info("a user has logged in",
 The `-context-only` flag causes `sloglint` to report the use of any methods that do not take a `context.Context`.
 
 ```go
-slog.Info("a user has logged in") // sloglint: methods that do not take a context should not be used"
+slog.Info("a user has logged in") // sloglint: methods without a context should not be used
 ```
 
 This report can be fixed by using the equivalent method with a `Context` suffix.

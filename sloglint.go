@@ -116,9 +116,9 @@ func run(pass *analysis.Pass, opts *Options) {
 		}
 
 		if opts.ContextOnly {
-			arg, ok := pass.TypesInfo.Types[call.Args[0]]
-			if ok && arg.Type.String() != "context.Context" {
-				pass.Reportf(call.Pos(), "methods that do not take a context should not be used")
+			arg := pass.TypesInfo.TypeOf(call.Args[0])
+			if arg != nil && arg.String() != "context.Context" {
+				pass.Reportf(call.Pos(), "methods without a context should not be used")
 			}
 		}
 
