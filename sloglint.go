@@ -19,9 +19,9 @@ import (
 type Options struct {
 	KVOnly         bool // Enforce using key-value pairs only (incompatible with AttrOnly).
 	AttrOnly       bool // Enforce using attributes only (incompatible with KVOnly).
+	ContextOnly    bool // Enforce using methods that accept a context.
 	NoRawKeys      bool // Enforce using constants instead of raw keys.
 	ArgsOnSepLines bool // Enforce putting arguments on separate lines.
-	ContextOnly    bool // Enforce using methods that take a context.
 }
 
 // New creates a new sloglint analyzer.
@@ -57,9 +57,9 @@ func flags(opts *Options) flag.FlagSet {
 
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
+	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
-	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that take a context")
 
 	return *fs
 }

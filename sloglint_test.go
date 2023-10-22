@@ -25,6 +25,11 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "attr_only")
 	})
 
+	t.Run("context only", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{ContextOnly: true})
+		analysistest.Run(t, testdata, analyzer, "context_only")
+	})
+
 	t.Run("no raw keys", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{NoRawKeys: true})
 		analysistest.Run(t, testdata, analyzer, "no_raw_keys")
@@ -33,10 +38,5 @@ func TestAnalyzer(t *testing.T) {
 	t.Run("arguments on separate lines", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{ArgsOnSepLines: true})
 		analysistest.Run(t, testdata, analyzer, "args_on_sep_lines")
-	})
-
-	t.Run("context only", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{ContextOnly: true})
-		analysistest.Run(t, testdata, analyzer, "context_only")
 	})
 }

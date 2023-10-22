@@ -24,9 +24,9 @@ The linter has several options, so you can adjust it to your own code style.
 
 * Forbid mixing key-value pairs and attributes within a single function call (default)
 * Enforce using either key-value pairs or attributes for the entire project (optional)
+* Enforce using methods that accept a context (optional)
 * Enforce using constants instead of raw keys (optional)
 * Enforce putting arguments on separate lines (optional)
-* Enforce using methods that take a context (optional)
 
 ## 📦 Install
 
@@ -52,6 +52,22 @@ In contrast, the `-attr-only` flag causes `sloglint` to report any use of key-va
 
 ```go
 slog.Info("a user has logged in", "user_id", 42) // sloglint: key-value pairs should not be used
+```
+
+### Context only
+
+Some `slog.Handler` implementations make use of the given `context.Context` (e.g. to access context values).
+For them to work properly, you need to pass a context to all logger calls.
+The `-context-only` flag causes `sloglint` to report the use of methods without a context.
+
+```go
+slog.Info("a user has logged in") // sloglint: methods without a context should not be used
+```
+
+This report can be fixed by using the equivalent method with the `Context` suffix.
+
+```go
+slog.InfoContext(ctx, "a user has logged in")
 ```
 
 ### No raw keys
@@ -98,23 +114,6 @@ slog.Info("a user has logged in",
     "ip_address", "192.0.2.0",
 )
 ```
-
-### Context only
-
-The `-context-only` flag causes `sloglint` to report the use of any methods that do not take a `context.Context`.
-
-```go
-slog.Info("a user has logged in") // sloglint: methods without a context should not be used
-```
-
-This report can be fixed by using the equivalent method with a `Context` suffix.
-
-```go
-slog.InfoContext(ctx, "a user has logged in")
-```
-
-The `slog.Handler` implementations in the standard library do not currently utilise the given
-context. However, third-party implementations can create `slog.Attr` instances from the context.
 
 [1]: https://github.com/go-simpler/sloglint/releases
 [2]: https://github.com/go-simpler/sloggen
