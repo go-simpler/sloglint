@@ -26,6 +26,7 @@ The linter has several options, so you can adjust it to your own code style.
 * Enforce using either key-value pairs or attributes for the entire project (optional)
 * Enforce using methods that accept a context (optional)
 * Enforce using constants instead of raw keys (optional)
+* Enforce a single key naming convention (optional)
 * Enforce putting arguments on separate lines (optional)
 
 ## 📦 Install
@@ -96,6 +97,10 @@ slog.Info("a user has logged in", UserId(42))
 ```
 
 > 💡 Such helpers can be automatically generated for you by the [`sloggen`][2] tool. Give it a try too!
+
+### Key naming convention
+
+WIP
 
 ### Arguments on separate lines
 

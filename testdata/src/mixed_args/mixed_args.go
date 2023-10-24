@@ -6,15 +6,14 @@ import (
 )
 
 func tests() {
+	logger := slog.New(nil)
+	ctx := context.Background()
+
 	slog.Info("msg")
 	slog.Info("msg", "foo", 1)
 	slog.Info("msg", "foo", 1, "bar", 2)
 	slog.Info("msg", slog.Int("foo", 1))
 	slog.Info("msg", slog.Int("foo", 1), slog.Int("bar", 2))
-}
-
-func allFuncs() {
-	ctx := context.Background()
 
 	slog.Log(ctx, slog.LevelInfo, "msg", "foo", 1, slog.Int("bar", 2)) // want `key-value pairs and attributes should not be mixed`
 	slog.Debug("msg", "foo", 1, slog.Int("bar", 2))                    // want `key-value pairs and attributes should not be mixed`
@@ -26,7 +25,6 @@ func allFuncs() {
 	slog.WarnContext(ctx, "msg", "foo", 1, slog.Int("bar", 2))         // want `key-value pairs and attributes should not be mixed`
 	slog.ErrorContext(ctx, "msg", "foo", 1, slog.Int("bar", 2))        // want `key-value pairs and attributes should not be mixed`
 
-	logger := slog.New(nil)
 	logger.Log(ctx, slog.LevelInfo, "msg", "foo", 1, slog.Int("bar", 2)) // want `key-value pairs and attributes should not be mixed`
 	logger.Debug("msg", "foo", 1, slog.Int("bar", 2))                    // want `key-value pairs and attributes should not be mixed`
 	logger.Info("msg", "foo", 1, slog.Int("bar", 2))                     // want `key-value pairs and attributes should not be mixed`
