@@ -4,11 +4,13 @@ package sloglint
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"strconv"
 
+	"github.com/ettle/strcase"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -17,11 +19,12 @@ import (
 
 // Options are options for the sloglint analyzer.
 type Options struct {
-	KVOnly         bool // Enforce using key-value pairs only (incompatible with AttrOnly).
-	AttrOnly       bool // Enforce using attributes only (incompatible with KVOnly).
-	ContextOnly    bool // Enforce using methods that accept a context.
-	NoRawKeys      bool // Enforce using constants instead of raw keys.
-	ArgsOnSepLines bool // Enforce putting arguments on separate lines.
+	KVOnly         bool   // Enforce using key-value pairs only (incompatible with AttrOnly).
+	AttrOnly       bool   // Enforce using attributes only (incompatible with KVOnly).
+	ContextOnly    bool   // Enforce using methods that accept a context.
+	NoRawKeys      bool   // Enforce using constants instead of raw keys.
+	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
+	ArgsOnSepLines bool   // Enforce putting arguments on separate lines.
 }
 
 // New creates a new sloglint analyzer.
@@ -44,6 +47,13 @@ func New(opts *Options) *analysis.Analyzer {
 	}
 }
 
+const (
+	snakeCase  = "snake"
+	kebabCase  = "kebab"
+	camelCase  = "camel"
+	pascalCase = "pascal"
+)
+
 func flags(opts *Options) flag.FlagSet {
 	fs := flag.NewFlagSet("sloglint", flag.ContinueOnError)
 
@@ -60,6 +70,16 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
+
+	fs.Func("key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)", func(s string) error {
+		switch s {
+		case snakeCase, kebabCase, camelCase, pascalCase:
+			opts.KeyNamingCase = s
+			return nil
+		default:
+			return fmt.Errorf("sloglint: -key-naming-case=%s: invalid value", s)
+		}
+	})
 
 	return *fs
 }
@@ -160,6 +180,17 @@ func run(pass *analysis.Pass, opts *Options) {
 		if opts.ArgsOnSepLines && argsOnSameLine(pass.Fset, call, keys, attrs) {
 			pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 		}
+
+		switch {
+		case opts.KeyNamingCase == snakeCase && badKeyNames(pass.TypesInfo, strcase.ToSnake, keys, attrs):
+			pass.Reportf(call.Pos(), "keys should be written in snake_case")
+		case opts.KeyNamingCase == kebabCase && badKeyNames(pass.TypesInfo, strcase.ToKebab, keys, attrs):
+			pass.Reportf(call.Pos(), "keys should be written in kebab-case")
+		case opts.KeyNamingCase == camelCase && badKeyNames(pass.TypesInfo, strcase.ToCamel, keys, attrs):
+			pass.Reportf(call.Pos(), "keys should be written in camelCase")
+		case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, strcase.ToPascal, keys, attrs):
+			pass.Reportf(call.Pos(), "keys should be written in PascalCase")
+		}
 	})
 }
 
@@ -209,6 +240,64 @@ func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {
 	}
 
 	return false
+}
+
+func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast.Expr) bool {
+	for _, key := range keys {
+		if name, ok := getKeyName(key); ok && name != caseFn(name) {
+			return true
+		}
+	}
+
+	for _, attr := range attrs {
+		var expr ast.Expr
+		switch attr := attr.(type) {
+		case *ast.CallExpr: // e.g. slog.Int()
+			fn := typeutil.StaticCallee(info, attr)
+			if _, ok := attrFuncs[fn.FullName()]; ok {
+				expr = attr.Args[0]
+			}
+		case *ast.CompositeLit: // slog.Attr{}
+			switch len(attr.Elts) {
+			case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
+				if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
+					expr = kv.Value
+				}
+			case 2: // slog.Attr{..., ...} | slog.Attr{Key: ..., Value: ...}
+				expr = attr.Elts[0]
+				if kv1, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv1.Key.(*ast.Ident).Name == "Key" {
+					expr = kv1.Value
+				}
+				if kv2, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv2.Key.(*ast.Ident).Name == "Key" {
+					expr = kv2.Value
+				}
+			}
+		}
+		if name, ok := getKeyName(expr); ok && name != caseFn(name) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func getKeyName(expr ast.Expr) (string, bool) {
+	if expr == nil {
+		return "", false
+	}
+	if ident, ok := expr.(*ast.Ident); ok {
+		if ident.Obj == nil || ident.Obj.Decl == nil || ident.Obj.Kind != ast.Con {
+			return "", false
+		}
+		if spec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok && len(spec.Values) > 0 {
+			// TODO: support len(spec.Values) > 1; e.g. "const foo, bar = 1, 2"
+			expr = spec.Values[0]
+		}
+	}
+	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		return lit.Value, true
+	}
+	return "", false
 }
 
 func argsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Expr) bool {

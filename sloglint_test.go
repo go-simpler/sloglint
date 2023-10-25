@@ -35,6 +35,11 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "no_raw_keys")
 	})
 
+	t.Run("key naming case", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{KeyNamingCase: "snake"})
+		analysistest.Run(t, testdata, analyzer, "key_naming_case")
+	})
+
 	t.Run("arguments on separate lines", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{ArgsOnSepLines: true})
 		analysistest.Run(t, testdata, analyzer, "args_on_sep_lines")

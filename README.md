@@ -11,7 +11,7 @@ A Go linter that ensures consistent code style when using `log/slog`.
 
 The `log/slog` API allows two different types of arguments: key-value pairs and attributes.
 People may have different opinions about which one is better,
-but nobody probably wants to mix them up because it makes the code harder to read.
+but nobody probably wants to mix them up because it makes the code harder to read:
 
 ```go
 slog.Info("a user has logged in", "user_id", 42, slog.String("ip_address", "192.0.2.0")) // ugh
@@ -26,6 +26,7 @@ The linter has several options, so you can adjust it to your own code style.
 * Enforce using either key-value pairs or attributes for the entire project (optional)
 * Enforce using methods that accept a context (optional)
 * Enforce using constants instead of raw keys (optional)
+* Enforce a single key naming convention (optional)
 * Enforce putting arguments on separate lines (optional)
 
 ## 📦 Install
@@ -40,7 +41,7 @@ sloglint [flags] ./...
 
 ### Key-value pairs only
 
-The `-kv-only` flag causes `sloglint` to report any use of attributes.
+The `-kv-only` flag causes `sloglint` to report any use of attributes:
 
 ```go
 slog.Info("a user has logged in", slog.Int("user_id", 42)) // sloglint: attributes should not be used
@@ -48,7 +49,7 @@ slog.Info("a user has logged in", slog.Int("user_id", 42)) // sloglint: attribut
 
 ### Attributes only
 
-In contrast, the `-attr-only` flag causes `sloglint` to report any use of key-value pairs.
+In contrast, the `-attr-only` flag causes `sloglint` to report any use of key-value pairs:
 
 ```go
 slog.Info("a user has logged in", "user_id", 42) // sloglint: key-value pairs should not be used
@@ -58,13 +59,13 @@ slog.Info("a user has logged in", "user_id", 42) // sloglint: key-value pairs sh
 
 Some `slog.Handler` implementations make use of the given `context.Context` (e.g. to access context values).
 For them to work properly, you need to pass a context to all logger calls.
-The `-context-only` flag causes `sloglint` to report the use of methods without a context.
+The `-context-only` flag causes `sloglint` to report the use of methods without a context:
 
 ```go
 slog.Info("a user has logged in") // sloglint: methods without a context should not be used
 ```
 
-This report can be fixed by using the equivalent method with the `Context` suffix.
+This report can be fixed by using the equivalent method with the `Context` suffix:
 
 ```go
 slog.InfoContext(ctx, "a user has logged in")
@@ -73,7 +74,8 @@ slog.InfoContext(ctx, "a user has logged in")
 ### No raw keys
 
 To prevent typos, you may want to forbid the use of raw keys altogether.
-The `-no-raw-keys` flag causes `sloglint` to report the use of strings as keys (including `slog.Attr` calls, e.g. `slog.Int("user_id", 42)`).
+The `-no-raw-keys` flag causes `sloglint` to report the use of strings as keys
+(including `slog.Attr` calls, e.g. `slog.Int("user_id", 42)`):
 
 ```go
 slog.Info("a user has logged in", "user_id", 42) // sloglint: raw keys should not be used
@@ -87,7 +89,7 @@ const UserId = "user_id"
 slog.Info("a user has logged in", UserId, 42)
 ```
 
-...or custom `slog.Attr` constructors.
+...or custom `slog.Attr` constructors:
 
 ```go
 func UserId(value int) slog.Attr { return slog.Int("user_id", value) }
@@ -97,16 +99,25 @@ slog.Info("a user has logged in", UserId(42))
 
 > 💡 Such helpers can be automatically generated for you by the [`sloggen`][2] tool. Give it a try too!
 
+### Key naming convention
+
+To ensure consistency in logs, you may want to enforce a single key naming convention.
+The `-key-naming-case=<snake|kebab|camel|pascal>` flag causes `sloglint` to report keys written in a case other than the given one:
+
+```go
+slog.Info("a user has logged in", "user-id", 42) // sloglint: keys should be written in snake_case
+```
+
 ### Arguments on separate lines
 
 To improve code readability, you may want to put arguments on separate lines, especially when using key-value pairs.
-The `-args-on-sep-lines` flag causes `sloglint` to report 2+ arguments on the same line.
+The `-args-on-sep-lines` flag causes `sloglint` to report 2+ arguments on the same line:
 
 ```go
 slog.Info("a user has logged in", "user_id", 42, "ip_address", "192.0.2.0") // sloglint: arguments should be put on separate lines
 ```
 
-This report can be fixed by reformatting the code.
+This report can be fixed by reformatting the code:
 
 ```go
 slog.Info("a user has logged in",
