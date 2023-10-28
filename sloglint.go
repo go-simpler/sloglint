@@ -39,7 +39,12 @@ func New(opts *Options) *analysis.Analyzer {
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 		Run: func(pass *analysis.Pass) (any, error) {
 			if opts.KVOnly && opts.AttrOnly {
-				return nil, errors.New("sloglint: incompatible options provided")
+				return nil, fmt.Errorf("sloglint: Options.KVOnly and Options.AttrOnly: %w", errIncompatible)
+			}
+			switch opts.KeyNamingCase {
+			case "", snakeCase, kebabCase, camelCase, pascalCase:
+			default:
+				return nil, fmt.Errorf("sloglint: Options.KeyNamingCase=%s: %w", opts.KeyNamingCase, errInvalidValue)
 			}
 			run(pass, opts)
 			return nil, nil
@@ -47,11 +52,9 @@ func New(opts *Options) *analysis.Analyzer {
 	}
 }
 
-const (
-	snakeCase  = "snake"
-	kebabCase  = "kebab"
-	camelCase  = "camel"
-	pascalCase = "pascal"
+var (
+	errIncompatible = errors.New("incompatible options")
+	errInvalidValue = errors.New("invalid value")
 )
 
 func flags(opts *Options) flag.FlagSet {
@@ -72,13 +75,8 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
 
 	fs.Func("key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)", func(s string) error {
-		switch s {
-		case snakeCase, kebabCase, camelCase, pascalCase:
-			opts.KeyNamingCase = s
-			return nil
-		default:
-			return fmt.Errorf("sloglint: -key-naming-case=%s: invalid value", s)
-		}
+		opts.KeyNamingCase = s
+		return nil
 	})
 
 	return *fs
@@ -117,6 +115,13 @@ var attrFuncs = map[string]struct{}{
 	"log/slog.Group":    {},
 	"log/slog.Any":      {},
 }
+
+const (
+	snakeCase  = "snake"
+	kebabCase  = "kebab"
+	camelCase  = "camel"
+	pascalCase = "pascal"
+)
 
 func run(pass *analysis.Pass, opts *Options) {
 	visit := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
