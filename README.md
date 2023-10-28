@@ -26,6 +26,7 @@ The linter has several options, so you can adjust it to your own code style.
 * Enforce using either key-value pairs or attributes for the entire project (optional)
 * Enforce using methods that accept a context (optional)
 * Enforce using constants instead of raw keys (optional)
+* Enforce using static values for log messages (optional)
 * Enforce a single key naming convention (optional)
 * Enforce putting arguments on separate lines (optional)
 
@@ -109,6 +110,29 @@ slog.Info("a user has logged in", UserId(42))
 ```
 
 > 💡 Such helpers can be automatically generated for you by the [`sloggen`][4] tool. Give it a try too!
+
+### Static messages
+
+To maximise the utility of structured logging, you may want to require log messages are static and
+move dynamic values to attributes. The `static-msg` option causes `sloglint` to report log messages
+that are not string literals or constants:
+
+```go
+myMsg := generateMsg()
+slog.Info(myMsg) // sloglint: messages should be string literals or constants
+
+slog.Info(fmt.Sprintf("message: %s", value)) // sloglint: messages should be string literals or constants
+```
+
+The report can be fixed by moving any dynamic values to attributes and useing a constant or a string
+literal for the message:
+
+```go
+const myMsg = "message"
+slog.Info(myMsg)
+
+slog.Info("message", slog.String("value", value))
+```
 
 ### Key naming convention
 

@@ -23,6 +23,7 @@ type Options struct {
 	AttrOnly       bool   // Enforce using attributes only (incompatible with KVOnly).
 	ContextOnly    bool   // Enforce using methods that accept a context.
 	NoRawKeys      bool   // Enforce using constants instead of raw keys.
+	StaticMsg      bool   // Enforce using static values for messages.
 	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
 	ArgsOnSepLines bool   // Enforce putting arguments on separate lines.
 }
@@ -71,6 +72,7 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
 	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context")
+	boolVar(&opts.StaticMsg, "static-msg", "enforce using static values for messages")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
 
@@ -147,6 +149,10 @@ func run(pass *analysis.Pass, opts *Options) {
 			}
 		}
 
+		if opts.StaticMsg && !isStaticMsg(call.Args[argsPos-1]) {
+			pass.Reportf(call.Pos(), "messages should be string literals or constants")
+		}
+
 		// NOTE: we assume that the arguments have already been validated by govet.
 		args := call.Args[argsPos:]
 		if len(args) == 0 {
@@ -197,6 +203,17 @@ func run(pass *analysis.Pass, opts *Options) {
 			pass.Reportf(call.Pos(), "keys should be written in PascalCase")
 		}
 	})
+}
+
+func isStaticMsg(arg ast.Expr) bool {
+	switch val := arg.(type) {
+	case *ast.BasicLit:
+		return true
+	case *ast.Ident:
+		return val.Obj != nil && val.Obj.Kind == ast.Con
+	default:
+		return false
+	}
 }
 
 func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {

@@ -35,6 +35,11 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "no_raw_keys")
 	})
 
+	t.Run("static msg", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{StaticMsg: true})
+		analysistest.Run(t, testdata, analyzer, "static_msg")
+	})
+
 	t.Run("key naming case", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{KeyNamingCase: "snake"})
 		analysistest.Run(t, testdata, analyzer, "key_naming_case")
