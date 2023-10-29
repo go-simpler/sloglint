@@ -30,6 +30,11 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "context_only")
 	})
 
+	t.Run("static message", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{StaticMsg: true})
+		analysistest.Run(t, testdata, analyzer, "static_msg")
+	})
+
 	t.Run("no raw keys", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{NoRawKeys: true})
 		analysistest.Run(t, testdata, analyzer, "no_raw_keys")

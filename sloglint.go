@@ -22,6 +22,7 @@ type Options struct {
 	KVOnly         bool   // Enforce using key-value pairs only (incompatible with AttrOnly).
 	AttrOnly       bool   // Enforce using attributes only (incompatible with KVOnly).
 	ContextOnly    bool   // Enforce using methods that accept a context.
+	StaticMsg      bool   // Enforce using static log messages.
 	NoRawKeys      bool   // Enforce using constants instead of raw keys.
 	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
 	ArgsOnSepLines bool   // Enforce putting arguments on separate lines.
@@ -71,6 +72,7 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
 	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context")
+	boolVar(&opts.StaticMsg, "static-msg", "enforce using static log messages")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
 
@@ -146,6 +148,9 @@ func run(pass *analysis.Pass, opts *Options) {
 				pass.Reportf(call.Pos(), "methods without a context should not be used")
 			}
 		}
+		if opts.StaticMsg && !staticMsg(call.Args[argsPos-1]) {
+			pass.Reportf(call.Pos(), "message should be a string literal or a constant")
+		}
 
 		// NOTE: we assume that the arguments have already been validated by govet.
 		args := call.Args[argsPos:]
@@ -197,6 +202,17 @@ func run(pass *analysis.Pass, opts *Options) {
 			pass.Reportf(call.Pos(), "keys should be written in PascalCase")
 		}
 	})
+}
+
+func staticMsg(expr ast.Expr) bool {
+	switch msg := expr.(type) {
+	case *ast.BasicLit: // e.g. slog.Info("msg")
+		return msg.Kind == token.STRING
+	case *ast.Ident: // e.g. const msg = "msg"; slog.Info(msg)
+		return msg.Obj != nil && msg.Obj.Kind == ast.Con
+	default:
+		return false
+	}
 }
 
 func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {

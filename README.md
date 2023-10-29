@@ -25,6 +25,7 @@ The linter has several options, so you can adjust it to your own code style.
 * Forbid mixing key-value pairs and attributes within a single function call (default)
 * Enforce using either key-value pairs or attributes for the entire project (optional)
 * Enforce using methods that accept a context (optional)
+* Enforce using static log messages (optional)
 * Enforce using constants instead of raw keys (optional)
 * Enforce a single key naming convention (optional)
 * Enforce putting arguments on separate lines (optional)
@@ -80,6 +81,21 @@ This report can be fixed by using the equivalent method with the `Context` suffi
 
 ```go
 slog.InfoContext(ctx, "a user has logged in")
+```
+
+### Static messages
+
+To get the most out of structured logging, you may want to require log messages to be static.
+The `static-msg` option causes `sloglint` to report non-static messages:
+
+```go
+slog.Info(fmt.Sprintf("a user with id %d has logged in", 42)) // sloglint: message should be a string literal or a constant
+```
+
+The report can be fixed by moving dynamic values to arguments:
+
+```go
+slog.Info("a user has logged in", "user_id", 42)
 ```
 
 ### No raw keys
