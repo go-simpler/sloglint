@@ -13,19 +13,19 @@ var varMsg = "msg"
 func tests() {
 	ctx := context.Background()
 
+	slog.Info("msg")
+	slog.InfoContext(ctx, "msg")
 	slog.Log(ctx, slog.LevelInfo, "msg")
-	slog.Debug("msg")
-	slog.DebugContext(ctx, "msg")
 
+	slog.Info(constMsg)
+	slog.InfoContext(ctx, constMsg)
 	slog.Log(ctx, slog.LevelInfo, constMsg)
-	slog.Debug(constMsg)
-	slog.DebugContext(ctx, constMsg)
 
-	slog.Log(ctx, slog.LevelInfo, fmt.Sprintf("msg")) // want `messages should be string literals or constants`
-	slog.Debug(fmt.Sprintf("msg"))                    // want `messages should be string literals or constants`
-	slog.DebugContext(ctx, fmt.Sprintf("msg"))        // want `messages should be string literals or constants`
+	slog.Info(fmt.Sprintf("msg"))                     // want `message should be a string literal or a constant`
+	slog.InfoContext(ctx, fmt.Sprintf("msg"))         // want `message should be a string literal or a constant`
+	slog.Log(ctx, slog.LevelInfo, fmt.Sprintf("msg")) // want `message should be a string literal or a constant`
 
-	slog.Log(ctx, slog.LevelInfo, varMsg) // want `messages should be string literals or constants`
-	slog.Debug(varMsg)                    // want `messages should be string literals or constants`
-	slog.DebugContext(ctx, varMsg)        // want `messages should be string literals or constants`
+	slog.Info(varMsg)                     // want `message should be a string literal or a constant`
+	slog.InfoContext(ctx, varMsg)         // want `message should be a string literal or a constant`
+	slog.Log(ctx, slog.LevelInfo, varMsg) // want `message should be a string literal or a constant`
 }
