@@ -3,7 +3,7 @@ module go-simpler.org/sloglint
 go 1.20
 
 require (
-	github.com/ettle/strcase v0.1.1
+	github.com/ettle/strcase v0.2.0
 	golang.org/x/tools v0.14.0
 )
 
