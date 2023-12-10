@@ -26,12 +26,15 @@ type Options struct {
 	NoRawKeys      bool   // Enforce using constants instead of raw keys.
 	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
 	ArgsOnSepLines bool   // Enforce putting arguments on separate lines.
+	NoMixedArgs    bool   // Enforce using either attributes or key-value pairs (default true, superseded by AttrOnly and KVOnly).
 }
 
 // New creates a new sloglint analyzer.
 func New(opts *Options) *analysis.Analyzer {
 	if opts == nil {
-		opts = new(Options)
+		opts = &Options{
+			NoMixedArgs: true,
+		}
 	}
 	return &analysis.Analyzer{
 		Name:     "sloglint",
@@ -75,6 +78,7 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.StaticMsg, "static-msg", "enforce using static log messages")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
+	boolVar(&opts.NoMixedArgs, "no-mixed-args", "enforce using either attributes or key-value pairs (default true, superseded by -attr-only and -kv-only)")
 
 	fs.Func("key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)", func(s string) error {
 		opts.KeyNamingCase = s
@@ -180,7 +184,7 @@ func run(pass *analysis.Pass, opts *Options) {
 			pass.Reportf(call.Pos(), "attributes should not be used")
 		case opts.AttrOnly && len(attrs) < len(args):
 			pass.Reportf(call.Pos(), "key-value pairs should not be used")
-		case 0 < len(attrs) && len(attrs) < len(args):
+		case opts.NoMixedArgs && 0 < len(attrs) && len(attrs) < len(args):
 			pass.Reportf(call.Pos(), "key-value pairs and attributes should not be mixed")
 		}
 
