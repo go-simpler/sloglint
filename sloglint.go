@@ -19,22 +19,20 @@ import (
 
 // Options are options for the sloglint analyzer.
 type Options struct {
-	KVOnly         bool   // Enforce using key-value pairs only (incompatible with AttrOnly).
-	AttrOnly       bool   // Enforce using attributes only (incompatible with KVOnly).
+	NoMixedArgs    bool   // Enforce not mixing key-value pairs and attributes (default true).
+	KVOnly         bool   // Enforce using key-value pairs only (overrides NoMixedArgs, incompatible with AttrOnly).
+	AttrOnly       bool   // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
 	ContextOnly    bool   // Enforce using methods that accept a context.
 	StaticMsg      bool   // Enforce using static log messages.
 	NoRawKeys      bool   // Enforce using constants instead of raw keys.
 	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
 	ArgsOnSepLines bool   // Enforce putting arguments on separate lines.
-	NoMixedArgs    bool   // Enforce using either attributes or key-value pairs (default true, superseded by AttrOnly and KVOnly).
 }
 
 // New creates a new sloglint analyzer.
 func New(opts *Options) *analysis.Analyzer {
 	if opts == nil {
-		opts = &Options{
-			NoMixedArgs: true,
-		}
+		opts = &Options{NoMixedArgs: true}
 	}
 	return &analysis.Analyzer{
 		Name:     "sloglint",
@@ -72,13 +70,13 @@ func flags(opts *Options) flag.FlagSet {
 		})
 	}
 
-	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
-	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
+	boolVar(&opts.NoMixedArgs, "no-mixed-args", "enforce not mixing key-value pairs and attributes (default true)")
+	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (overrides -no-mixed-args, incompatible with -attr-only)")
+	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
 	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context")
 	boolVar(&opts.StaticMsg, "static-msg", "enforce using static log messages")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
-	boolVar(&opts.NoMixedArgs, "no-mixed-args", "enforce using either attributes or key-value pairs (default true, superseded by -attr-only and -kv-only)")
 
 	fs.Func("key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)", func(s string) error {
 		opts.KeyNamingCase = s
