@@ -10,9 +10,9 @@ import (
 func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
 
-	t.Run("mixed arguments", func(t *testing.T) {
+	t.Run("no mixed arguments", func(t *testing.T) {
 		analyzer := sloglint.New(nil)
-		analysistest.Run(t, testdata, analyzer, "mixed_args")
+		analysistest.Run(t, testdata, analyzer, "no_mixed_args")
 	})
 
 	t.Run("key-value pairs only", func(t *testing.T) {
