@@ -19,8 +19,9 @@ import (
 
 // Options are options for the sloglint analyzer.
 type Options struct {
-	KVOnly         bool   // Enforce using key-value pairs only (incompatible with AttrOnly).
-	AttrOnly       bool   // Enforce using attributes only (incompatible with KVOnly).
+	NoMixedArgs    bool   // Enforce not mixing key-value pairs and attributes (default true).
+	KVOnly         bool   // Enforce using key-value pairs only (overrides NoMixedArgs, incompatible with AttrOnly).
+	AttrOnly       bool   // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
 	ContextOnly    bool   // Enforce using methods that accept a context.
 	StaticMsg      bool   // Enforce using static log messages.
 	NoRawKeys      bool   // Enforce using constants instead of raw keys.
@@ -31,7 +32,7 @@ type Options struct {
 // New creates a new sloglint analyzer.
 func New(opts *Options) *analysis.Analyzer {
 	if opts == nil {
-		opts = new(Options)
+		opts = &Options{NoMixedArgs: true}
 	}
 	return &analysis.Analyzer{
 		Name:     "sloglint",
@@ -69,8 +70,9 @@ func flags(opts *Options) flag.FlagSet {
 		})
 	}
 
-	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (incompatible with -attr-only)")
-	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (incompatible with -kv-only)")
+	boolVar(&opts.NoMixedArgs, "no-mixed-args", "enforce not mixing key-value pairs and attributes (default true)")
+	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (overrides -no-mixed-args, incompatible with -attr-only)")
+	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
 	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context")
 	boolVar(&opts.StaticMsg, "static-msg", "enforce using static log messages")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
@@ -180,7 +182,7 @@ func run(pass *analysis.Pass, opts *Options) {
 			pass.Reportf(call.Pos(), "attributes should not be used")
 		case opts.AttrOnly && len(attrs) < len(args):
 			pass.Reportf(call.Pos(), "key-value pairs should not be used")
-		case 0 < len(attrs) && len(attrs) < len(args):
+		case opts.NoMixedArgs && 0 < len(attrs) && len(attrs) < len(args):
 			pass.Reportf(call.Pos(), "key-value pairs and attributes should not be mixed")
 		}
 

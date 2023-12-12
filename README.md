@@ -22,8 +22,8 @@ The linter has several options, so you can adjust it to your own code style.
 
 ## 🚀 Features
 
-* Forbid mixing key-value pairs and attributes within a single function call (default)
-* Enforce using either key-value pairs or attributes for the entire project (optional)
+* Enforce not mixing key-value pairs and attributes (default)
+* Enforce using either key-value pairs only or attributes only (optional)
 * Enforce using methods that accept a context (optional)
 * Enforce using static log messages (optional)
 * Enforce using constants instead of raw keys (optional)
@@ -50,6 +50,16 @@ Run `golangci-lint` with `sloglint` enabled.
 See the list of [available options][3] to configure the linter.
 
 When using `sloglint` standalone, pass the options as flags of the same name.
+
+### No mixed arguments
+
+The `no-mixed-args` option causes `sloglint` to report mixing key-values pairs and attributes within a single function call:
+
+```go
+slog.Info("a user has logged in", "user_id", 42, slog.String("ip_address", "192.0.2.0")) // sloglint: key-value pairs and attributes should not be mixed
+```
+
+It is enabled by default.
 
 ### Key-value pairs only
 
