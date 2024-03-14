@@ -11,7 +11,6 @@ jobs:
   test:
     uses: go-simpler/.github/.github/workflows/test.yml@main
     with:
-      go-versions: '[ "stable" ]' # current "oldstable" (1.20) does not contain flag.FlagSet.BoolFunc.
       runs-on: '[ "ubuntu-latest", "windows-latest", "macos-latest" ]'
   lint:
     uses: go-simpler/.github/.github/workflows/lint.yml@main
