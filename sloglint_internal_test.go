@@ -10,11 +10,15 @@ func TestOptions(t *testing.T) {
 		opts Options
 		err  error
 	}{
-		"incompatible": {
+		"KVOnly+AttrOnly: incompatible": {
 			opts: Options{KVOnly: true, AttrOnly: true},
 			err:  errIncompatible,
 		},
-		"invalid value": {
+		"NoGlobal: invalid value": {
+			opts: Options{NoGlobal: "-"},
+			err:  errInvalidValue,
+		},
+		"KeyNamingCase: invalid value": {
 			opts: Options{KeyNamingCase: "-"},
 			err:  errInvalidValue,
 		},

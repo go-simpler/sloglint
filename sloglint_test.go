@@ -25,6 +25,16 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "attr_only")
 	})
 
+	t.Run("no global (all)", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{NoGlobal: "all"})
+		analysistest.Run(t, testdata, analyzer, "no_global_all")
+	})
+
+	t.Run("no global (default)", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{NoGlobal: "default"})
+		analysistest.Run(t, testdata, analyzer, "no_global_default")
+	})
+
 	t.Run("context only", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{ContextOnly: true})
 		analysistest.Run(t, testdata, analyzer, "context_only")
