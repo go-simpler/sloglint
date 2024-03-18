@@ -18,6 +18,10 @@ func TestOptions(t *testing.T) {
 			opts: Options{NoGlobal: "-"},
 			err:  errInvalidValue,
 		},
+		"ContextOnly: invalid value": {
+			opts: Options{ContextOnly: "-"},
+			err:  errInvalidValue,
+		},
 		"KeyNamingCase: invalid value": {
 			opts: Options{KeyNamingCase: "-"},
 			err:  errInvalidValue,
