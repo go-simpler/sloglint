@@ -5,11 +5,21 @@ import (
 	"log/slog"
 )
 
-func withContext(ctx context.Context) {
+func tests(ctx context.Context) {
 	slog.Info("msg") // want `InfoContext should be used instead`
 	slog.InfoContext(ctx, "msg")
+
+	if true {
+		slog.Info("msg") // want `InfoContext should be used instead`
+		slog.InfoContext(ctx, "msg")
+	}
+
+	_ = func() {
+		slog.Info("msg") // want `InfoContext should be used instead`
+		slog.InfoContext(ctx, "msg")
+	}
 }
 
-func withoutContext() {
+func noctx() {
 	slog.Info("msg")
 }
