@@ -24,7 +24,7 @@ type Options struct {
 	KVOnly         bool   // Enforce using key-value pairs only (overrides NoMixedArgs, incompatible with AttrOnly).
 	AttrOnly       bool   // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
 	NoGlobal       string // Enforce not using global loggers ("all" or "default").
-	ContextOnly    bool   // Enforce using methods that accept a context.
+	ContextOnly    string // Enforce using methods that accept a context ("all" or "scope").
 	StaticMsg      bool   // Enforce using static log messages.
 	NoRawKeys      bool   // Enforce using constants instead of raw keys.
 	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
@@ -36,6 +36,7 @@ func New(opts *Options) *analysis.Analyzer {
 	if opts == nil {
 		opts = &Options{NoMixedArgs: true}
 	}
+
 	return &analysis.Analyzer{
 		Name:     "sloglint",
 		Doc:      "ensure consistent code style when using log/slog",
@@ -50,6 +51,12 @@ func New(opts *Options) *analysis.Analyzer {
 			case "", "all", "default":
 			default:
 				return nil, fmt.Errorf("sloglint: Options.NoGlobal=%s: %w", opts.NoGlobal, errInvalidValue)
+			}
+
+			switch opts.ContextOnly {
+			case "", "all", "scope":
+			default:
+				return nil, fmt.Errorf("sloglint: Options.ContextOnly=%s: %w", opts.ContextOnly, errInvalidValue)
 			}
 
 			switch opts.KeyNamingCase {
@@ -91,7 +98,7 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (overrides -no-mixed-args, incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
 	strVar(&opts.NoGlobal, "no-global", "enforce not using global loggers (all|default)")
-	boolVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context")
+	strVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context (all|scope)")
 	boolVar(&opts.StaticMsg, "static-msg", "enforce using static log messages")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)")
@@ -145,7 +152,8 @@ func run(pass *analysis.Pass, opts *Options) {
 	visit := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	filter := []ast.Node{(*ast.CallExpr)(nil)}
 
-	visit.Preorder(filter, func(node ast.Node) {
+	// TODO: use visit.Preorder if opts.ContextOnly != "scope"
+	visit.WithStack(filter, func(node ast.Node, _ bool, stack []ast.Node) (proceed bool) {
 		call := node.(*ast.CallExpr)
 
 		fn := typeutil.StaticCallee(pass.TypesInfo, call)
@@ -170,10 +178,16 @@ func run(pass *analysis.Pass, opts *Options) {
 			}
 		}
 
-		if opts.ContextOnly {
+		switch opts.ContextOnly {
+		case "all":
 			typ := pass.TypesInfo.TypeOf(call.Args[0])
 			if typ != nil && typ.String() != "context.Context" {
 				pass.Reportf(call.Pos(), "methods without a context should not be used")
+			}
+		case "scope":
+			typ := pass.TypesInfo.TypeOf(call.Args[0])
+			if typ != nil && typ.String() != "context.Context" && hasContextInScope(pass.TypesInfo, stack) {
+				pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
 			}
 		}
 
@@ -231,6 +245,8 @@ func run(pass *analysis.Pass, opts *Options) {
 		case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, strcase.ToPascal, keys, attrs):
 			pass.Reportf(call.Pos(), "keys should be written in PascalCase")
 		}
+
+		return
 	})
 }
 
@@ -245,6 +261,24 @@ func globalLoggerUsed(info *types.Info, expr ast.Expr) bool {
 	}
 	obj := info.ObjectOf(ident)
 	return obj.Parent() == obj.Pkg().Scope()
+}
+
+func hasContextInScope(info *types.Info, stack []ast.Node) bool {
+	for i := len(stack) - 1; i >= 0; i-- {
+		decl, ok := stack[i].(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		params := decl.Type.Params
+		if params.NumFields() == 0 || len(params.List[0].Names) == 0 {
+			continue
+		}
+		typ := info.TypeOf(params.List[0].Names[0])
+		if typ != nil && typ.String() == "context.Context" {
+			return true
+		}
+	}
+	return false
 }
 
 func staticMsg(expr ast.Expr) bool {

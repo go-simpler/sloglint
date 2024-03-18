@@ -35,9 +35,14 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "no_global_default")
 	})
 
-	t.Run("context only", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{ContextOnly: true})
-		analysistest.Run(t, testdata, analyzer, "context_only")
+	t.Run("context only (all)", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{ContextOnly: "all"})
+		analysistest.Run(t, testdata, analyzer, "context_only_all")
+	})
+
+	t.Run("context only (scope)", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{ContextOnly: "scope"})
+		analysistest.Run(t, testdata, analyzer, "context_only_scope")
 	})
 
 	t.Run("static message", func(t *testing.T) {
