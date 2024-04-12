@@ -315,12 +315,18 @@ func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast
 
 	for _, attr := range attrs {
 		var expr ast.Expr
+
 		switch attr := attr.(type) {
 		case *ast.CallExpr: // e.g. slog.Int()
 			fn := typeutil.StaticCallee(info, attr)
-			if _, ok := attrFuncs[fn.FullName()]; ok {
-				expr = attr.Args[0]
+			if fn == nil {
+				continue
 			}
+			if _, ok := attrFuncs[fn.FullName()]; !ok {
+				continue
+			}
+			expr = attr.Args[0]
+
 		case *ast.CompositeLit: // slog.Attr{}
 			switch len(attr.Elts) {
 			case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
@@ -337,6 +343,7 @@ func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast
 				}
 			}
 		}
+
 		if name, ok := getKeyName(expr); ok && name != caseFn(name) {
 			return true
 		}
