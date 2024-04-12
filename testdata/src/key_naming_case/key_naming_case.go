@@ -36,3 +36,8 @@ func tests() {
 	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: "foo-bar"}) // want `keys should be written in snake_case`
 	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: kebabKey})  // want `keys should be written in snake_case`
 }
+
+func issue35() {
+	intAttr := slog.Int
+	slog.Info("msg", intAttr("foo_bar", 1))
+}
