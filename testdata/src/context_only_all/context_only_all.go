@@ -12,10 +12,10 @@ func tests(ctx context.Context) {
 	slog.WarnContext(ctx, "msg")
 	slog.ErrorContext(ctx, "msg")
 
-	slog.Debug("msg") // want `methods without a context should not be used`
-	slog.Info("msg")  // want `methods without a context should not be used`
-	slog.Warn("msg")  // want `methods without a context should not be used`
-	slog.Error("msg") // want `methods without a context should not be used`
+	slog.Debug("msg") // want `DebugContext should be used instead`
+	slog.Info("msg")  // want `InfoContext should be used instead`
+	slog.Warn("msg")  // want `WarnContext should be used instead`
+	slog.Error("msg") // want `ErrorContext should be used instead`
 
 	logger := slog.New(nil)
 	logger.Log(ctx, slog.LevelInfo, "msg")
@@ -24,8 +24,8 @@ func tests(ctx context.Context) {
 	logger.WarnContext(ctx, "msg")
 	logger.ErrorContext(ctx, "msg")
 
-	logger.Debug("msg") // want `methods without a context should not be used`
-	logger.Info("msg")  // want `methods without a context should not be used`
-	logger.Warn("msg")  // want `methods without a context should not be used`
-	logger.Error("msg") // want `methods without a context should not be used`
+	logger.Debug("msg") // want `DebugContext should be used instead`
+	logger.Info("msg")  // want `InfoContext should be used instead`
+	logger.Warn("msg")  // want `WarnContext should be used instead`
+	logger.Error("msg") // want `ErrorContext should be used instead`
 }
