@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -20,15 +21,16 @@ import (
 
 // Options are options for the sloglint analyzer.
 type Options struct {
-	NoMixedArgs    bool   // Enforce not mixing key-value pairs and attributes (default true).
-	KVOnly         bool   // Enforce using key-value pairs only (overrides NoMixedArgs, incompatible with AttrOnly).
-	AttrOnly       bool   // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
-	NoGlobal       string // Enforce not using global loggers ("all" or "default").
-	ContextOnly    string // Enforce using methods that accept a context ("all" or "scope").
-	StaticMsg      bool   // Enforce using static log messages.
-	NoRawKeys      bool   // Enforce using constants instead of raw keys.
-	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
-	ArgsOnSepLines bool   // Enforce putting arguments on separate lines.
+	NoMixedArgs    bool     // Enforce not mixing key-value pairs and attributes (default true).
+	KVOnly         bool     // Enforce using key-value pairs only (overrides NoMixedArgs, incompatible with AttrOnly).
+	AttrOnly       bool     // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
+	NoGlobal       string   // Enforce not using global loggers ("all" or "default").
+	ContextOnly    string   // Enforce using methods that accept a context ("all" or "scope").
+	StaticMsg      bool     // Enforce using static log messages.
+	NoRawKeys      bool     // Enforce using constants instead of raw keys.
+	KeyNamingCase  string   // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
+	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
+	ForbiddenKeys  []string // Forbid using specific keys in key-value pairs.
 }
 
 // New creates a new sloglint analyzer.
@@ -94,6 +96,13 @@ func flags(opts *Options) flag.FlagSet {
 		})
 	}
 
+	repeatedStrVar := func(value *[]string, name, usage string) {
+		fset.Func(name, usage, func(s string) error {
+			*value = append(*value, strings.Split(s, ",")...)
+			return nil
+		})
+	}
+
 	boolVar(&opts.NoMixedArgs, "no-mixed-args", "enforce not mixing key-value pairs and attributes (default true)")
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (overrides -no-mixed-args, incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
@@ -103,11 +112,13 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
+	repeatedStrVar(&opts.ForbiddenKeys, "forbidden-key", "enforce not using specific keys. Can be repeated or comma separated")
 
 	return *fset
 }
 
 var slogFuncs = map[string]int{ // funcName:argsPos
+	"log/slog.With":                   0,
 	"log/slog.Log":                    3,
 	"log/slog.Debug":                  1,
 	"log/slog.Info":                   1,
@@ -117,6 +128,7 @@ var slogFuncs = map[string]int{ // funcName:argsPos
 	"log/slog.InfoContext":            2,
 	"log/slog.WarnContext":            2,
 	"log/slog.ErrorContext":           2,
+	"(*log/slog.Logger).With":         0,
 	"(*log/slog.Logger).Log":          3,
 	"(*log/slog.Logger).Debug":        1,
 	"(*log/slog.Logger).Info":         1,
@@ -249,14 +261,18 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 	}
 
+	if len(opts.ForbiddenKeys) > 0 && badKeyNames(pass.TypesInfo, forbiddenKeysUsed(opts.ForbiddenKeys), keys, attrs) {
+		pass.Reportf(call.Pos(), "keys include forbidden values")
+	}
+
 	switch {
-	case opts.KeyNamingCase == snakeCase && badKeyNames(pass.TypesInfo, strcase.ToSnake, keys, attrs):
+	case opts.KeyNamingCase == snakeCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToSnake), keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in snake_case")
-	case opts.KeyNamingCase == kebabCase && badKeyNames(pass.TypesInfo, strcase.ToKebab, keys, attrs):
+	case opts.KeyNamingCase == kebabCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToKebab), keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in kebab-case")
-	case opts.KeyNamingCase == camelCase && badKeyNames(pass.TypesInfo, strcase.ToCamel, keys, attrs):
+	case opts.KeyNamingCase == camelCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToCamel), keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in camelCase")
-	case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, strcase.ToPascal, keys, attrs):
+	case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToPascal), keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in PascalCase")
 	}
 }
@@ -351,9 +367,9 @@ func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {
 	return false
 }
 
-func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast.Expr) bool {
+func badKeyNames(info *types.Info, caseFn func(string) bool, keys, attrs []ast.Expr) bool {
 	for _, key := range keys {
-		if name, ok := getKeyName(key); ok && name != caseFn(name) {
+		if name, ok := getKeyName(key); ok && caseFn(name) {
 			return true
 		}
 	}
@@ -389,7 +405,7 @@ func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast
 			}
 		}
 
-		if name, ok := getKeyName(expr); ok && name != caseFn(name) {
+		if name, ok := getKeyName(expr); ok && caseFn(name) {
 			return true
 		}
 	}
@@ -437,4 +453,27 @@ func argsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Expr) 
 	}
 
 	return false
+}
+
+func forbiddenKeysUsed(forbiddenKeys []string) func(string) bool {
+	return func(s string) bool {
+		// Strip quotes if any.
+		unquoted := trimQuotes(s)
+		return slices.Contains(forbiddenKeys, unquoted)
+	}
+}
+
+func valueChanged(handler func(string) string) func(string) bool {
+	return func(s string) bool {
+		return handler(s) != s
+	}
+}
+
+func trimQuotes(s string) string {
+	if len(s) >= 2 {
+		if c := s[len(s)-1]; s[0] == c && (c == '"' || c == '\'' || c == '`') {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
 }

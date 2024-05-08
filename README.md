@@ -23,6 +23,7 @@ With `sloglint` you can enforce various rules for `log/slog` based on your prefe
 * Enforce using constants instead of raw keys (optional)
 * Enforce a single key naming convention (optional)
 * Enforce putting arguments on separate lines (optional)
+* Prevent usage of reserved keys in key-value pairs (optional)
 
 ## 📦 Install
 
@@ -165,6 +166,15 @@ slog.Info("a user has logged in",
     "user_id", 42,
     "ip_address", "192.0.2.0",
 )
+```
+
+### Arguments with forbidden keys
+
+To ensure users don't use reserved words in key-value pairs, you may want to enforce rules to avoid misusages.
+The `forbidden-key` option causes `sloglint` to report usages of forbidden keys. These keys could be typically controlled by slog handlers and its usage should be preserved to avoid key duplication.
+
+```go
+slog.Info("a user has logged in", "reserved_key", 49) // sloglint: keys include forbidden values
 ```
 
 [1]: https://golangci-lint.run

@@ -64,4 +64,9 @@ func TestAnalyzer(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{ArgsOnSepLines: true})
 		analysistest.Run(t, testdata, analyzer, "args_on_sep_lines")
 	})
+
+	t.Run("key foo_bar is forbbiden case", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{ForbiddenKeys: []string{"foo_bar"}})
+		analysistest.Run(t, testdata, analyzer, "key_forbidden")
+	})
 }
