@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -20,15 +21,16 @@ import (
 
 // Options are options for the sloglint analyzer.
 type Options struct {
-	NoMixedArgs    bool   // Enforce not mixing key-value pairs and attributes (default true).
-	KVOnly         bool   // Enforce using key-value pairs only (overrides NoMixedArgs, incompatible with AttrOnly).
-	AttrOnly       bool   // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
-	NoGlobal       string // Enforce not using global loggers ("all" or "default").
-	ContextOnly    string // Enforce using methods that accept a context ("all" or "scope").
-	StaticMsg      bool   // Enforce using static log messages.
-	NoRawKeys      bool   // Enforce using constants instead of raw keys.
-	KeyNamingCase  string // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
-	ArgsOnSepLines bool   // Enforce putting arguments on separate lines.
+	NoMixedArgs    bool     // Enforce not mixing key-value pairs and attributes (default true).
+	KVOnly         bool     // Enforce using key-value pairs only (overrides NoMixedArgs, incompatible with AttrOnly).
+	AttrOnly       bool     // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
+	NoGlobal       string   // Enforce not using global loggers ("all" or "default").
+	ContextOnly    string   // Enforce using methods that accept a context ("all" or "scope").
+	StaticMsg      bool     // Enforce using static log messages.
+	NoRawKeys      bool     // Enforce using constants instead of raw keys.
+	KeyNamingCase  string   // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
+	ForbiddenKeys  []string // Enforce not using specific keys.
+	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
 }
 
 // New creates a new sloglint analyzer.
@@ -103,6 +105,11 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
+
+	fset.Func("forbidden-keys", "enforce not using specific keys (comma-separated)", func(s string) error {
+		opts.ForbiddenKeys = append(opts.ForbiddenKeys, strings.Split(s, ",")...)
+		return nil
+	})
 
 	return *fset
 }
@@ -249,15 +256,41 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 	}
 
+	if len(opts.ForbiddenKeys) > 0 {
+		if name, found := badKeyNames(pass.TypesInfo, isForbiddenKey(opts.ForbiddenKeys), keys, attrs); found {
+			pass.Reportf(call.Pos(), "%q key is forbidden and should not be used", name)
+		}
+	}
+
 	switch {
-	case opts.KeyNamingCase == snakeCase && badKeyNames(pass.TypesInfo, strcase.ToSnake, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in snake_case")
-	case opts.KeyNamingCase == kebabCase && badKeyNames(pass.TypesInfo, strcase.ToKebab, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in kebab-case")
-	case opts.KeyNamingCase == camelCase && badKeyNames(pass.TypesInfo, strcase.ToCamel, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in camelCase")
-	case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, strcase.ToPascal, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in PascalCase")
+	case opts.KeyNamingCase == snakeCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToSnake), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in snake_case")
+		}
+	case opts.KeyNamingCase == kebabCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToKebab), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in kebab-case")
+		}
+	case opts.KeyNamingCase == camelCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToCamel), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in camelCase")
+		}
+	case opts.KeyNamingCase == pascalCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToPascal), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in PascalCase")
+		}
+	}
+}
+
+func isForbiddenKey(forbiddenKeys []string) func(string) bool {
+	return func(name string) bool {
+		return slices.Contains(forbiddenKeys, name)
+	}
+}
+
+func valueChanged(handler func(string) string) func(string) bool {
+	return func(name string) bool {
+		return handler(name) != name
 	}
 }
 
@@ -351,10 +384,10 @@ func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {
 	return false
 }
 
-func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast.Expr) bool {
+func badKeyNames(info *types.Info, validationFn func(string) bool, keys, attrs []ast.Expr) (string, bool) {
 	for _, key := range keys {
-		if name, ok := getKeyName(key); ok && name != caseFn(name) {
-			return true
+		if name, ok := getKeyName(key); ok && validationFn(name) {
+			return name, true
 		}
 	}
 
@@ -389,12 +422,12 @@ func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast
 			}
 		}
 
-		if name, ok := getKeyName(expr); ok && name != caseFn(name) {
-			return true
+		if name, ok := getKeyName(expr); ok && validationFn(name) {
+			return name, true
 		}
 	}
 
-	return false
+	return "", false
 }
 
 func getKeyName(expr ast.Expr) (string, bool) {
@@ -411,7 +444,12 @@ func getKeyName(expr ast.Expr) (string, bool) {
 		}
 	}
 	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		return lit.Value, true
+		// string literals are always quoted.
+		value, err := strconv.Unquote(lit.Value)
+		if err != nil {
+			panic("unreachable")
+		}
+		return value, true
 	}
 	return "", false
 }
