@@ -170,12 +170,17 @@ slog.Info("a user has logged in",
 
 ### Arguments with forbidden keys
 
-To ensure users don't use reserved words in key-value pairs, you may want to enforce rules to avoid misusages.
+To ensure users don't use reserved words in key-value pairs, you may want to enforce rules to avoid misuse.
 The `forbidden-key` option causes `sloglint` to report usages of forbidden keys. These keys could be typically controlled by slog handlers and its usage should be preserved to avoid key duplication.
 
 ```go
-slog.Info("a user has logged in", "reserved_key", 49) // sloglint: keys include forbidden values
+slog.Info("a user has logged in", "forbidden_key", 49) // sloglint: "forbidden_key" key is forbidden and should not be used
 ```
+
+Keys to forbid can either be comma separated or passed as separate `forbidden-key` options. 
+
+To avoid key collisions and duplication when using `slog.JSONHandler` or `slog.TextHandler`,
+you might want to use `--forbidden-key=source,msg,level,time` to avoid using reserved keys.
 
 [1]: https://golangci-lint.run
 [2]: https://github.com/go-simpler/sloglint/releases
