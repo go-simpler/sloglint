@@ -29,8 +29,8 @@ type Options struct {
 	StaticMsg      bool     // Enforce using static log messages.
 	NoRawKeys      bool     // Enforce using constants instead of raw keys.
 	KeyNamingCase  string   // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
+	ForbiddenKeys  []string // Enforce not using specific keys.
 	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
-	ForbiddenKeys  []string // Forbid using specific keys in key-value pairs.
 }
 
 // New creates a new sloglint analyzer.
@@ -96,13 +96,6 @@ func flags(opts *Options) flag.FlagSet {
 		})
 	}
 
-	repeatedStrVar := func(value *[]string, name, usage string) {
-		fset.Func(name, usage, func(s string) error {
-			*value = append(*value, strings.Split(s, ",")...)
-			return nil
-		})
-	}
-
 	boolVar(&opts.NoMixedArgs, "no-mixed-args", "enforce not mixing key-value pairs and attributes (default true)")
 	boolVar(&opts.KVOnly, "kv-only", "enforce using key-value pairs only (overrides -no-mixed-args, incompatible with -attr-only)")
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
@@ -112,7 +105,11 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
 	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
-	repeatedStrVar(&opts.ForbiddenKeys, "forbidden-key", "enforce not using specific keys. Can be repeated or comma separated")
+
+	fset.Func("forbidden-keys", "enforce not using specific keys (comma-separated)", func(s string) error {
+		opts.ForbiddenKeys = append(opts.ForbiddenKeys, strings.Split(s, ",")...)
+		return nil
+	})
 
 	return *fset
 }
