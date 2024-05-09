@@ -114,12 +114,11 @@ func flags(opts *Options) flag.FlagSet {
 	return *fset
 }
 
-type slogFuncInfo struct {
+var slogFuncs = map[string]struct {
 	argsPos          int
 	skipContextCheck bool
-}
-
-var slogFuncs = map[string]slogFuncInfo{ // funcName:
+}{
+	// funcName: {argsPos, skipContextCheck}
 	"log/slog.With":                   {argsPos: 0, skipContextCheck: true},
 	"log/slog.Log":                    {argsPos: 3},
 	"log/slog.LogAttrs":               {argsPos: 3},
@@ -208,7 +207,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		}
 	}
 
-	// NOTE: with functions are not checked for context.Context.
+	// NOTE: "With" functions are not checked for context.Context.
 	if !funcInfo.skipContextCheck {
 		switch opts.ContextOnly {
 		case "all":
