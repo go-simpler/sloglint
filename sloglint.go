@@ -261,18 +261,19 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 	}
 
-	if len(opts.ForbiddenKeys) > 0 && badKeyNames(pass.TypesInfo, forbiddenKeysUsed(opts.ForbiddenKeys), keys, attrs) {
-		pass.Reportf(call.Pos(), "keys include forbidden values")
+	// NOTE: checkForbiddenKeys returns early with found=false if opts.ForbiddenKeys is empty.
+	if name, found := checkForbiddenKeys(pass.TypesInfo, opts.ForbiddenKeys, keys, attrs); found {
+		pass.Reportf(call.Pos(), "%q key is forbidden and should not be used", name)
 	}
 
 	switch {
-	case opts.KeyNamingCase == snakeCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToSnake), keys, attrs):
+	case opts.KeyNamingCase == snakeCase && badKeyNames(pass.TypesInfo, strcase.ToSnake, keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in snake_case")
-	case opts.KeyNamingCase == kebabCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToKebab), keys, attrs):
+	case opts.KeyNamingCase == kebabCase && badKeyNames(pass.TypesInfo, strcase.ToKebab, keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in kebab-case")
-	case opts.KeyNamingCase == camelCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToCamel), keys, attrs):
+	case opts.KeyNamingCase == camelCase && badKeyNames(pass.TypesInfo, strcase.ToCamel, keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in camelCase")
-	case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, valueChanged(strcase.ToPascal), keys, attrs):
+	case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, strcase.ToPascal, keys, attrs):
 		pass.Reportf(call.Pos(), "keys should be written in PascalCase")
 	}
 }
@@ -367,9 +368,9 @@ func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {
 	return false
 }
 
-func badKeyNames(info *types.Info, caseFn func(string) bool, keys, attrs []ast.Expr) bool {
+func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast.Expr) bool {
 	for _, key := range keys {
-		if name, ok := getKeyName(key); ok && caseFn(name) {
+		if name, ok := getKeyName(key); ok && name != caseFn(name) {
 			return true
 		}
 	}
@@ -405,12 +406,62 @@ func badKeyNames(info *types.Info, caseFn func(string) bool, keys, attrs []ast.E
 			}
 		}
 
-		if name, ok := getKeyName(expr); ok && caseFn(name) {
+		if name, ok := getKeyName(expr); ok && name != caseFn(name) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// checkForbiddenKeys returns the first forbidden key found in keys or attrs or an empty string.
+func checkForbiddenKeys(info *types.Info, forbiddenKeys []string, keys, attrs []ast.Expr) (string, bool) {
+	if len(forbiddenKeys) == 0 {
+		return "", false
+	}
+	for _, key := range keys {
+		if name, ok := getKeyName(key); ok && slices.Contains(forbiddenKeys, name) {
+			return name, true
+		}
+	}
+
+	for _, attr := range attrs {
+		var expr ast.Expr
+
+		switch attr := attr.(type) {
+		case *ast.CallExpr: // e.g. slog.Int()
+			fn := typeutil.StaticCallee(info, attr)
+			if fn == nil {
+				continue
+			}
+			if _, ok := attrFuncs[fn.FullName()]; !ok {
+				continue
+			}
+			expr = attr.Args[0]
+
+		case *ast.CompositeLit: // slog.Attr{}
+			switch len(attr.Elts) {
+			case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
+				if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
+					expr = kv.Value
+				}
+			case 2: // slog.Attr{..., ...} | slog.Attr{Key: ..., Value: ...}
+				expr = attr.Elts[0]
+				if kv1, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv1.Key.(*ast.Ident).Name == "Key" {
+					expr = kv1.Value
+				}
+				if kv2, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv2.Key.(*ast.Ident).Name == "Key" {
+					expr = kv2.Value
+				}
+			}
+		}
+
+		if name, ok := getKeyName(expr); ok && slices.Contains(forbiddenKeys, name) {
+			return name, true
+		}
+	}
+
+	return "", false
 }
 
 func getKeyName(expr ast.Expr) (string, bool) {
@@ -427,7 +478,10 @@ func getKeyName(expr ast.Expr) (string, bool) {
 		}
 	}
 	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		return lit.Value, true
+		// For string literals, we need to trim the quotes to get the actual key name.
+		// e.g. "foo" -> foo, 'foo' -> foo, `foo` -> foo
+		// This is necessary because the lit.Value is always quoted.
+		return trimQuotes(lit.Value), true
 	}
 	return "", false
 }
@@ -453,20 +507,6 @@ func argsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Expr) 
 	}
 
 	return false
-}
-
-func forbiddenKeysUsed(forbiddenKeys []string) func(string) bool {
-	return func(s string) bool {
-		// Strip quotes if any.
-		unquoted := trimQuotes(s)
-		return slices.Contains(forbiddenKeys, unquoted)
-	}
-}
-
-func valueChanged(handler func(string) string) func(string) bool {
-	return func(s string) bool {
-		return handler(s) != s
-	}
 }
 
 func trimQuotes(s string) string {
