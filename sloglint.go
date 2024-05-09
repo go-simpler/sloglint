@@ -114,25 +114,34 @@ func flags(opts *Options) flag.FlagSet {
 	return *fset
 }
 
-var slogFuncs = map[string]int{ // funcName:argsPos
-	"log/slog.Log":                    3,
-	"log/slog.Debug":                  1,
-	"log/slog.Info":                   1,
-	"log/slog.Warn":                   1,
-	"log/slog.Error":                  1,
-	"log/slog.DebugContext":           2,
-	"log/slog.InfoContext":            2,
-	"log/slog.WarnContext":            2,
-	"log/slog.ErrorContext":           2,
-	"(*log/slog.Logger).Log":          3,
-	"(*log/slog.Logger).Debug":        1,
-	"(*log/slog.Logger).Info":         1,
-	"(*log/slog.Logger).Warn":         1,
-	"(*log/slog.Logger).Error":        1,
-	"(*log/slog.Logger).DebugContext": 2,
-	"(*log/slog.Logger).InfoContext":  2,
-	"(*log/slog.Logger).WarnContext":  2,
-	"(*log/slog.Logger).ErrorContext": 2,
+type slogFuncInfo struct {
+	argsPos          int
+	skipContextCheck bool
+}
+
+var slogFuncs = map[string]slogFuncInfo{ // funcName:
+	"log/slog.With":                   {argsPos: 0, skipContextCheck: true},
+	"log/slog.Log":                    {argsPos: 3},
+	"log/slog.LogAttrs":               {argsPos: 3},
+	"log/slog.Debug":                  {argsPos: 1},
+	"log/slog.Info":                   {argsPos: 1},
+	"log/slog.Warn":                   {argsPos: 1},
+	"log/slog.Error":                  {argsPos: 1},
+	"log/slog.DebugContext":           {argsPos: 2},
+	"log/slog.InfoContext":            {argsPos: 2},
+	"log/slog.WarnContext":            {argsPos: 2},
+	"log/slog.ErrorContext":           {argsPos: 2},
+	"(*log/slog.Logger).With":         {argsPos: 0, skipContextCheck: true},
+	"(*log/slog.Logger).Log":          {argsPos: 3},
+	"(*log/slog.Logger).LogAttrs":     {argsPos: 3},
+	"(*log/slog.Logger).Debug":        {argsPos: 1},
+	"(*log/slog.Logger).Info":         {argsPos: 1},
+	"(*log/slog.Logger).Warn":         {argsPos: 1},
+	"(*log/slog.Logger).Error":        {argsPos: 1},
+	"(*log/slog.Logger).DebugContext": {argsPos: 2},
+	"(*log/slog.Logger).InfoContext":  {argsPos: 2},
+	"(*log/slog.Logger).WarnContext":  {argsPos: 2},
+	"(*log/slog.Logger).ErrorContext": {argsPos: 2},
 }
 
 var attrFuncs = map[string]struct{}{
@@ -183,7 +192,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	}
 
 	name := fn.FullName()
-	argsPos, ok := slogFuncs[name]
+	funcInfo, ok := slogFuncs[name]
 	if !ok {
 		return
 	}
@@ -199,25 +208,28 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		}
 	}
 
-	switch opts.ContextOnly {
-	case "all":
-		typ := pass.TypesInfo.TypeOf(call.Args[0])
-		if typ != nil && typ.String() != "context.Context" {
-			pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
-		}
-	case "scope":
-		typ := pass.TypesInfo.TypeOf(call.Args[0])
-		if typ != nil && typ.String() != "context.Context" && hasContextInScope(pass.TypesInfo, stack) {
-			pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
+	// NOTE: with functions are not checked for context.Context.
+	if !funcInfo.skipContextCheck {
+		switch opts.ContextOnly {
+		case "all":
+			typ := pass.TypesInfo.TypeOf(call.Args[0])
+			if typ != nil && typ.String() != "context.Context" {
+				pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
+			}
+		case "scope":
+			typ := pass.TypesInfo.TypeOf(call.Args[0])
+			if typ != nil && typ.String() != "context.Context" && hasContextInScope(pass.TypesInfo, stack) {
+				pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
+			}
 		}
 	}
 
-	if opts.StaticMsg && !staticMsg(call.Args[argsPos-1]) {
+	if opts.StaticMsg && !staticMsg(call.Args[funcInfo.argsPos-1]) {
 		pass.Reportf(call.Pos(), "message should be a string literal or a constant")
 	}
 
 	// NOTE: we assume that the arguments have already been validated by govet.
-	args := call.Args[argsPos:]
+	args := call.Args[funcInfo.argsPos:]
 	if len(args) == 0 {
 		return
 	}
