@@ -444,10 +444,12 @@ func getKeyName(expr ast.Expr) (string, bool) {
 		}
 	}
 	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		// For string literals, we need to trim the quotes to get the actual key name.
-		// e.g. "foo" -> foo, 'foo' -> foo, `foo` -> foo
-		// This is necessary because the lit.Value is always quoted.
-		return trimQuotes(lit.Value), true
+		// string literals are always quoted.
+		value, err := strconv.Unquote(lit.Value)
+		if err != nil {
+			panic("unreachable")
+		}
+		return value, true
 	}
 	return "", false
 }
@@ -473,13 +475,4 @@ func argsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Expr) 
 	}
 
 	return false
-}
-
-func trimQuotes(s string) string {
-	if len(s) >= 2 {
-		if c := s[len(s)-1]; s[0] == c && (c == '"' || c == '\'' || c == '`') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
 }
