@@ -22,9 +22,5 @@ func tests() {
 	slog.Info("msg", slog.Attr{Key: snakeKey, Value: slog.IntValue(1)})  // want `"foo_bar" key is forbidden and should not be used`
 	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"}) // want `"foo_bar" key is forbidden and should not be used`
 	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: snakeKey})  // want `"foo_bar" key is forbidden and should not be used`
-	slog.With(slog.Attr{"foo_bar", slog.IntValue(1)}).Info("msg")        // want `"foo_bar" key is forbidden and should not be used`
-	slog.With(slog.Attr{snakeKey, slog.IntValue(1)})                     // want `"foo_bar" key is forbidden and should not be used`
-	slog.With(snakeKey, slog.IntValue(1))                                // want `"foo_bar" key is forbidden and should not be used`
-	slog.With("foo_bar", slog.IntValue(1))                               // want `"foo_bar" key is forbidden and should not be used`
 	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: `foo_bar`}) // want `"foo_bar" key is forbidden and should not be used`
 }

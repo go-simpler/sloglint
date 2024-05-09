@@ -118,7 +118,6 @@ func flags(opts *Options) flag.FlagSet {
 }
 
 var slogFuncs = map[string]int{ // funcName:argsPos
-	"log/slog.With":                   0,
 	"log/slog.Log":                    3,
 	"log/slog.Debug":                  1,
 	"log/slog.Info":                   1,
@@ -128,7 +127,6 @@ var slogFuncs = map[string]int{ // funcName:argsPos
 	"log/slog.InfoContext":            2,
 	"log/slog.WarnContext":            2,
 	"log/slog.ErrorContext":           2,
-	"(*log/slog.Logger).With":         0,
 	"(*log/slog.Logger).Log":          3,
 	"(*log/slog.Logger).Debug":        1,
 	"(*log/slog.Logger).Info":         1,
@@ -261,20 +259,41 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 	}
 
-	// NOTE: checkForbiddenKeys returns early with found=false if opts.ForbiddenKeys is empty.
-	if name, found := checkForbiddenKeys(pass.TypesInfo, opts.ForbiddenKeys, keys, attrs); found {
-		pass.Reportf(call.Pos(), "%q key is forbidden and should not be used", name)
+	if len(opts.ForbiddenKeys) > 0 {
+		if name, found := badKeyNames(pass.TypesInfo, isForbiddenKey(opts.ForbiddenKeys), keys, attrs); found {
+			pass.Reportf(call.Pos(), "%q key is forbidden and should not be used", name)
+		}
 	}
 
 	switch {
-	case opts.KeyNamingCase == snakeCase && badKeyNames(pass.TypesInfo, strcase.ToSnake, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in snake_case")
-	case opts.KeyNamingCase == kebabCase && badKeyNames(pass.TypesInfo, strcase.ToKebab, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in kebab-case")
-	case opts.KeyNamingCase == camelCase && badKeyNames(pass.TypesInfo, strcase.ToCamel, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in camelCase")
-	case opts.KeyNamingCase == pascalCase && badKeyNames(pass.TypesInfo, strcase.ToPascal, keys, attrs):
-		pass.Reportf(call.Pos(), "keys should be written in PascalCase")
+	case opts.KeyNamingCase == snakeCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToSnake), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in snake_case")
+		}
+	case opts.KeyNamingCase == kebabCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToKebab), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in kebab-case")
+		}
+	case opts.KeyNamingCase == camelCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToCamel), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in camelCase")
+		}
+	case opts.KeyNamingCase == pascalCase:
+		if _, found := badKeyNames(pass.TypesInfo, valueChanged(strcase.ToPascal), keys, attrs); found {
+			pass.Reportf(call.Pos(), "keys should be written in PascalCase")
+		}
+	}
+}
+
+func isForbiddenKey(forbiddenKeys []string) func(string) bool {
+	return func(name string) bool {
+		return slices.Contains(forbiddenKeys, name)
+	}
+}
+
+func valueChanged(handler func(string) string) func(string) bool {
+	return func(name string) bool {
+		return handler(name) != name
 	}
 }
 
@@ -368,59 +387,9 @@ func rawKeysUsed(info *types.Info, keys, attrs []ast.Expr) bool {
 	return false
 }
 
-func badKeyNames(info *types.Info, caseFn func(string) string, keys, attrs []ast.Expr) bool {
+func badKeyNames(info *types.Info, validationFn func(string) bool, keys, attrs []ast.Expr) (string, bool) {
 	for _, key := range keys {
-		if name, ok := getKeyName(key); ok && name != caseFn(name) {
-			return true
-		}
-	}
-
-	for _, attr := range attrs {
-		var expr ast.Expr
-
-		switch attr := attr.(type) {
-		case *ast.CallExpr: // e.g. slog.Int()
-			fn := typeutil.StaticCallee(info, attr)
-			if fn == nil {
-				continue
-			}
-			if _, ok := attrFuncs[fn.FullName()]; !ok {
-				continue
-			}
-			expr = attr.Args[0]
-
-		case *ast.CompositeLit: // slog.Attr{}
-			switch len(attr.Elts) {
-			case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
-				if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
-					expr = kv.Value
-				}
-			case 2: // slog.Attr{..., ...} | slog.Attr{Key: ..., Value: ...}
-				expr = attr.Elts[0]
-				if kv1, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv1.Key.(*ast.Ident).Name == "Key" {
-					expr = kv1.Value
-				}
-				if kv2, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv2.Key.(*ast.Ident).Name == "Key" {
-					expr = kv2.Value
-				}
-			}
-		}
-
-		if name, ok := getKeyName(expr); ok && name != caseFn(name) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// checkForbiddenKeys returns the first forbidden key found in keys or attrs or an empty string.
-func checkForbiddenKeys(info *types.Info, forbiddenKeys []string, keys, attrs []ast.Expr) (string, bool) {
-	if len(forbiddenKeys) == 0 {
-		return "", false
-	}
-	for _, key := range keys {
-		if name, ok := getKeyName(key); ok && slices.Contains(forbiddenKeys, name) {
+		if name, ok := getKeyName(key); ok && validationFn(name) {
 			return name, true
 		}
 	}
@@ -456,7 +425,7 @@ func checkForbiddenKeys(info *types.Info, forbiddenKeys []string, keys, attrs []
 			}
 		}
 
-		if name, ok := getKeyName(expr); ok && slices.Contains(forbiddenKeys, name) {
+		if name, ok := getKeyName(expr); ok && validationFn(name) {
 			return name, true
 		}
 	}
