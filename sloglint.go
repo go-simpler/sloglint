@@ -197,7 +197,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	switch opts.NoGlobal {
 	case "all":
-		if strings.HasPrefix(name, "log/slog.") || globalLoggerUsed(pass.TypesInfo, call.Fun) {
+		if strings.HasPrefix(name, "log/slog.") || isGlobalLoggerUsed(pass.TypesInfo, call.Fun) {
 			pass.Reportf(call.Pos(), "global logger should not be used")
 		}
 	case "default":
@@ -216,14 +216,14 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 			}
 		case "scope":
 			typ := pass.TypesInfo.TypeOf(call.Args[0])
-			if typ != nil && typ.String() != "context.Context" && hasContextInScope(pass.TypesInfo, stack) {
+			if typ != nil && typ.String() != "context.Context" && isContextInScope(pass.TypesInfo, stack) {
 				pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
 			}
 		}
 	}
 
 	msgPos := funcInfo.argsPos - 1
-	if opts.StaticMsg && !staticMsg(call.Args[msgPos]) {
+	if opts.StaticMsg && !isStaticMsg(call.Args[msgPos]) {
 		pass.Reportf(call.Pos(), "message should be a string literal or a constant")
 	}
 
@@ -294,13 +294,13 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		})
 	}
 
-	if opts.ArgsOnSepLines && argsOnSameLine(pass.Fset, call, keys, attrs) {
+	if opts.ArgsOnSepLines && areArgsOnSameLine(pass.Fset, call, keys, attrs) {
 		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 	}
 }
 
-func globalLoggerUsed(info *types.Info, expr ast.Expr) bool {
-	selector, ok := expr.(*ast.SelectorExpr)
+func isGlobalLoggerUsed(info *types.Info, call ast.Expr) bool {
+	selector, ok := call.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
@@ -312,7 +312,7 @@ func globalLoggerUsed(info *types.Info, expr ast.Expr) bool {
 	return obj.Parent() == obj.Pkg().Scope()
 }
 
-func hasContextInScope(info *types.Info, stack []ast.Node) bool {
+func isContextInScope(info *types.Info, stack []ast.Node) bool {
 	for i := len(stack) - 1; i >= 0; i-- {
 		decl, ok := stack[i].(*ast.FuncDecl)
 		if !ok {
@@ -330,7 +330,7 @@ func hasContextInScope(info *types.Info, stack []ast.Node) bool {
 	return false
 }
 
-func staticMsg(msg ast.Expr) bool {
+func isStaticMsg(msg ast.Expr) bool {
 	switch msg := msg.(type) {
 	case *ast.BasicLit: // e.g. slog.Info("msg")
 		return msg.Kind == token.STRING
@@ -377,20 +377,17 @@ func forEachKey(info *types.Info, keys, attrs []ast.Expr, fn func(key ast.Expr))
 	}
 }
 
-func getKeyName(expr ast.Expr) (string, bool) {
-	if expr == nil {
-		return "", false
-	}
-	if ident, ok := expr.(*ast.Ident); ok {
+func getKeyName(key ast.Expr) (string, bool) {
+	if ident, ok := key.(*ast.Ident); ok {
 		if ident.Obj == nil || ident.Obj.Decl == nil || ident.Obj.Kind != ast.Con {
 			return "", false
 		}
 		if spec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok && len(spec.Values) > 0 {
 			// TODO: support len(spec.Values) > 1; e.g. const foo, bar = 1, 2
-			expr = spec.Values[0]
+			key = spec.Values[0]
 		}
 	}
-	if lit, ok := expr.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+	if lit, ok := key.(*ast.BasicLit); ok && lit.Kind == token.STRING {
 		// string literals are always quoted.
 		value, err := strconv.Unquote(lit.Value)
 		if err != nil {
@@ -401,7 +398,7 @@ func getKeyName(expr ast.Expr) (string, bool) {
 	return "", false
 }
 
-func argsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Expr) bool {
+func areArgsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Expr) bool {
 	if len(keys)+len(attrs) <= 1 {
 		return false // special case: slog.Info("msg", "key", "value") is ok.
 	}
