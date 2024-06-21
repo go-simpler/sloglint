@@ -15,4 +15,7 @@ func tests() {
 	slog.With(slog.Int("foo", 1)).Info("msg")                     // want `attributes should not be used`
 	slog.With(slog.Int("foo", 1), slog.Int("bar", 2)).Info("msg") // want `attributes should not be used`
 	slog.With("foo", 1, slog.Int("bar", 2)).Info("msg")           // want `attributes should not be used`
+
+	args := []any{"foo", 1, "bar", 2}
+	slog.Log(nil, slog.LevelInfo, "msg", args...)
 }
