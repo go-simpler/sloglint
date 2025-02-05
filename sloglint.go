@@ -266,18 +266,23 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	if opts.NoRawKeys {
 		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
 			if pkgIdent, ok := key.(*ast.SelectorExpr); ok {
-				// This is a package selector; e.g. slog.String.
+				// This is a package selector; e.g. logging.KeyError
 				key = pkgIdent.Sel
 			}
 
+			// Check if the key is a constant.
 			if ident, ok := key.(*ast.Ident); ok {
+				// Check if the constant is defined in the same package.
 				obj := pass.TypesInfo.ObjectOf(ident)
 				if obj == nil || obj.Pkg() == nil || obj.Type() == nil {
+					// Object is not found or not fully resolved.
 					pass.Reportf(call.Pos(), "raw keys should not be used")
 				} else if _, ok := obj.(*types.Const); !ok {
+					// Object is not a constant.
 					pass.Reportf(call.Pos(), "raw keys should not be used")
 				}
 			} else {
+				// Key is not an identifier.
 				pass.Reportf(call.Pos(), "raw keys should not be used")
 			}
 		})
