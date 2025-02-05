@@ -265,7 +265,19 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	if opts.NoRawKeys {
 		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
-			if ident, ok := key.(*ast.Ident); !ok || ident.Obj == nil || ident.Obj.Kind != ast.Con {
+			if pkgIdent, ok := key.(*ast.SelectorExpr); ok {
+				// This is a package selector; e.g. slog.String.
+				key = pkgIdent.Sel
+			}
+
+			if ident, ok := key.(*ast.Ident); ok {
+				obj := pass.TypesInfo.ObjectOf(ident)
+				if obj == nil || obj.Pkg() == nil || obj.Type() == nil {
+					pass.Reportf(call.Pos(), "raw keys should not be used")
+				} else if _, ok := obj.(*types.Const); !ok {
+					pass.Reportf(call.Pos(), "raw keys should not be used")
+				}
+			} else {
 				pass.Reportf(call.Pos(), "raw keys should not be used")
 			}
 		})
