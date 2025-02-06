@@ -1,6 +1,6 @@
 module go-simpler.org/sloglint
 
-go 1.22.0
+go 1.23
 
 require (
 	github.com/ettle/strcase v0.2.0
