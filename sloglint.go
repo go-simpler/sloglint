@@ -19,6 +19,13 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
+const (
+	stdSlogImport = "log/slog."
+	expSlogImport = "golang.org/x/exp/slog."
+)
+
+var possibleImports = []string{stdSlogImport, expSlogImport}
+
 // Options are options for the sloglint analyzer.
 type Options struct {
 	NoMixedArgs    bool     // Enforce not mixing key-value pairs and attributes (default true).
@@ -114,46 +121,50 @@ func flags(opts *Options) flag.FlagSet {
 	return *fset
 }
 
-var slogFuncs = map[string]struct {
+var slogFuncsTmpl = map[string]struct {
 	argsPos          int
 	skipContextCheck bool
 }{
-	"log/slog.With":                   {argsPos: 0, skipContextCheck: true},
-	"log/slog.Log":                    {argsPos: 3},
-	"log/slog.LogAttrs":               {argsPos: 3},
-	"log/slog.Debug":                  {argsPos: 1},
-	"log/slog.Info":                   {argsPos: 1},
-	"log/slog.Warn":                   {argsPos: 1},
-	"log/slog.Error":                  {argsPos: 1},
-	"log/slog.DebugContext":           {argsPos: 2},
-	"log/slog.InfoContext":            {argsPos: 2},
-	"log/slog.WarnContext":            {argsPos: 2},
-	"log/slog.ErrorContext":           {argsPos: 2},
-	"(*log/slog.Logger).With":         {argsPos: 0, skipContextCheck: true},
-	"(*log/slog.Logger).Log":          {argsPos: 3},
-	"(*log/slog.Logger).LogAttrs":     {argsPos: 3},
-	"(*log/slog.Logger).Debug":        {argsPos: 1},
-	"(*log/slog.Logger).Info":         {argsPos: 1},
-	"(*log/slog.Logger).Warn":         {argsPos: 1},
-	"(*log/slog.Logger).Error":        {argsPos: 1},
-	"(*log/slog.Logger).DebugContext": {argsPos: 2},
-	"(*log/slog.Logger).InfoContext":  {argsPos: 2},
-	"(*log/slog.Logger).WarnContext":  {argsPos: 2},
-	"(*log/slog.Logger).ErrorContext": {argsPos: 2},
+	"%sWith":                   {argsPos: 0, skipContextCheck: true},
+	"%sLog":                    {argsPos: 3},
+	"%sLogAttrs":               {argsPos: 3},
+	"%sDebug":                  {argsPos: 1},
+	"%sInfo":                   {argsPos: 1},
+	"%sWarn":                   {argsPos: 1},
+	"%sError":                  {argsPos: 1},
+	"%sDebugContext":           {argsPos: 2},
+	"%sInfoContext":            {argsPos: 2},
+	"%sWarnContext":            {argsPos: 2},
+	"%sErrorContext":           {argsPos: 2},
+	"(*%sLogger).With":         {argsPos: 0, skipContextCheck: true},
+	"(*%sLogger).Log":          {argsPos: 3},
+	"(*%sLogger).LogAttrs":     {argsPos: 3},
+	"(*%sLogger).Debug":        {argsPos: 1},
+	"(*%sLogger).Info":         {argsPos: 1},
+	"(*%sLogger).Warn":         {argsPos: 1},
+	"(*%sLogger).Error":        {argsPos: 1},
+	"(*%sLogger).DebugContext": {argsPos: 2},
+	"(*%sLogger).InfoContext":  {argsPos: 2},
+	"(*%sLogger).WarnContext":  {argsPos: 2},
+	"(*%sLogger).ErrorContext": {argsPos: 2},
 }
 
-var attrFuncs = map[string]struct{}{
-	"log/slog.String":   {},
-	"log/slog.Int64":    {},
-	"log/slog.Int":      {},
-	"log/slog.Uint64":   {},
-	"log/slog.Float64":  {},
-	"log/slog.Bool":     {},
-	"log/slog.Time":     {},
-	"log/slog.Duration": {},
-	"log/slog.Group":    {},
-	"log/slog.Any":      {},
+var slogFuncs = pasteImportsToMap(slogFuncsTmpl)
+
+var attrFuncsTmpl = map[string]struct{}{
+	"%sString":   {},
+	"%sInt64":    {},
+	"%sInt":      {},
+	"%sUint64":   {},
+	"%sFloat64":  {},
+	"%sBool":     {},
+	"%sTime":     {},
+	"%sDuration": {},
+	"%sGroup":    {},
+	"%sAny":      {},
 }
+
+var attrFuncs = pasteImportsToMap(attrFuncsTmpl)
 
 const (
 	snakeCase  = "snake"
@@ -197,11 +208,11 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	switch opts.NoGlobal {
 	case "all":
-		if strings.HasPrefix(name, "log/slog.") || isGlobalLoggerUsed(pass.TypesInfo, call.Fun) {
+		if hasAnyPrefix(name, possibleImports) || isGlobalLoggerUsed(pass.TypesInfo, call.Fun) {
 			pass.Reportf(call.Pos(), "global logger should not be used")
 		}
 	case "default":
-		if strings.HasPrefix(name, "log/slog.") {
+		if hasAnyPrefix(name, possibleImports) {
 			pass.Reportf(call.Pos(), "default logger should not be used")
 		}
 	}
@@ -242,14 +253,14 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		if typ == nil {
 			continue
 		}
-
-		switch typ.String() {
-		case "string":
+		t := typ.String()
+		switch {
+		case t == "string":
 			keys = append(keys, args[i])
 			i++ // skip the value.
-		case "log/slog.Attr":
+		case typeEqual(t, "%sAttr"):
 			attrs = append(attrs, args[i])
-		case "[]any", "[]log/slog.Attr":
+		case t == "[]any" || typeEqual(t, "[]%sAttr"):
 			continue // the last argument may be an unpacked slice, skip it.
 		}
 	}
@@ -434,4 +445,35 @@ func areArgsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Exp
 	}
 
 	return false
+}
+
+func hasAnyPrefix(s string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func typeEqual(src, tmpl string) bool {
+	for _, importName := range possibleImports {
+		if fmt.Sprintf(tmpl, importName) == src {
+			return true
+		}
+	}
+
+	return false
+}
+
+func pasteImportsToMap[T any](m map[string]T) map[string]T {
+	newMap := make(map[string]T, len(possibleImports)*len(m))
+	for tmpl, value := range m {
+		for _, importName := range possibleImports {
+			newMap[fmt.Sprintf(tmpl, importName)] = value
+		}
+	}
+
+	return newMap
 }
