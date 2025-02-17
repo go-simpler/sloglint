@@ -418,13 +418,9 @@ func areArgsOnSameLine(fset *token.FileSet, call ast.Expr, keys, attrs []ast.Exp
 		return false // special case: slog.Info("msg", "key", "value") is ok.
 	}
 
-	l := len(keys) + len(attrs) + 1
-	args := make([]ast.Expr, 0, l)
-	args = append(args, call)
-	args = append(args, keys...)
-	args = append(args, attrs...)
+	args := slices.Concat([]ast.Expr{call}, keys, attrs)
 
-	lines := make(map[int]struct{}, l)
+	lines := make(map[int]struct{}, len(args))
 	for _, arg := range args {
 		line := fset.Position(arg.Pos()).Line
 		if _, ok := lines[line]; ok {
