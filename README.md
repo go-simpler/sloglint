@@ -24,6 +24,7 @@ With `sloglint` you can enforce various rules for `log/slog` based on your prefe
 * Enforce a single key naming convention (optional)
 * Enforce not using specific keys (optional)
 * Enforce putting arguments on separate lines (optional)
+* Enforce string literals to start with lower/upper character (optional)
 
 ## 📦 Install
 
@@ -178,6 +179,22 @@ slog.Info("a user has logged in",
     "user_id", 42,
     "ip_address", "192.0.2.0",
 )
+```
+
+### Message format
+
+Initial letter can be checked for `upper` or `lower` case. When format is empty, no checking is done.
+
+This rule makes best effort to allow acronyms like `HTTP` or `U.S.A.` to be recognized when checking against `lower` case and special words like `iPhone` for `upper` case.
+
+```go
+slog.Info("Msg") // sloglint: message literal should start with lower character
+```
+
+This report can be fixed with lowercasing the initial character, or with `nolint` comment:
+
+```go
+slog.Info("msg")
 ```
 
 [1]: https://golangci-lint.run

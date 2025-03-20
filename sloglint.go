@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/ettle/strcase"
 	"golang.org/x/tools/go/analysis"
@@ -28,6 +29,7 @@ type Options struct {
 	ContextOnly    string   // Enforce using methods that accept a context ("all" or "scope").
 	StaticMsg      bool     // Enforce using static log messages.
 	NoRawKeys      bool     // Enforce using constants instead of raw keys.
+	MsgFormat      string   // Enforce message format ("upper", "lower").
 	KeyNamingCase  string   // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
 	ForbiddenKeys  []string // Enforce not using specific keys.
 	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
@@ -226,6 +228,16 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	// NOTE: "With" functions have no message argument and must be skipped.
 	if opts.StaticMsg && msgPos >= 0 && !isStaticMsg(call.Args[msgPos]) {
 		pass.Reportf(call.Pos(), "message should be a string literal or a constant")
+
+	}
+
+	if opts.MsgFormat != "" && msgPos >= 0 {
+		if msg, ok := call.Args[msgPos].(*ast.BasicLit); ok && msg.Kind == token.STRING {
+			ok := isValidMsgLiteral(opts.MsgFormat, msg)
+			if !ok {
+				pass.Reportf(call.Pos(), fmt.Sprintf("message literal should start with %s character", opts.MsgFormat))
+			}
+		}
 	}
 
 	// NOTE: we assume that the arguments have already been validated by govet.
@@ -353,6 +365,50 @@ func isStaticMsg(msg ast.Expr) bool {
 		return msg.Obj != nil && msg.Obj.Kind == ast.Con
 	default:
 		return false
+	}
+}
+
+func isValidMsgLiteral(expectedFirstLetterCase string, msg *ast.BasicLit) bool {
+	expectedFirstLetterCase = strings.TrimSpace(expectedFirstLetterCase)
+	if expectedFirstLetterCase == "" {
+		// nothing is enforced so it's valid
+		return true
+	}
+
+	rmsg := []rune(msg.Value)
+
+	// NOTE: skip the first character which is quote or backtick for string literals
+	if len(rmsg) <= 3 {
+		return true
+	}
+	first, second := rmsg[1], rmsg[2]
+
+	switch strings.ToLower(expectedFirstLetterCase) {
+	case "lower":
+		if !unicode.IsUpper(first) {
+			// everything is fine
+			return true
+		}
+
+		// NOTE: skip acronyms with punctuation, e.g. "U.S.A."
+		if unicode.IsPunct(second) {
+			return true
+		}
+
+		// NOTE: also allow acronyms, e.g. "HTTP"
+		return unicode.IsUpper(second)
+
+	case "upper":
+		if !unicode.IsLower(first) {
+			// everything is fine
+			return true
+		}
+
+		// NOTE: also allow special case, e.g. "iPhone"
+		return unicode.IsUpper(second)
+
+	default:
+		return true
 	}
 }
 
