@@ -27,10 +27,10 @@ type Options struct {
 	AttrOnly       bool     // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
 	NoGlobal       string   // Enforce not using global loggers ("all" or "default").
 	ContextOnly    string   // Enforce using methods that accept a context ("all" or "scope").
-	StaticMsg      bool     // Enforce using static log messages.
+	StaticMsg      bool     // Enforce using static messages.
+	MsgFormat      string   // Enforce message format ("upper" or "lower").
 	NoRawKeys      bool     // Enforce using constants instead of raw keys.
-	MsgFormat      string   // Enforce message format ("upper", "lower").
-	KeyNamingCase  string   // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
+	KeyNamingCase  string   // Enforce key naming convention ("snake", "kebab", "camel", or "pascal").
 	ForbiddenKeys  []string // Enforce not using specific keys.
 	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
 }
@@ -61,6 +61,12 @@ func New(opts *Options) *analysis.Analyzer {
 			case "", "all", "scope":
 			default:
 				return nil, fmt.Errorf("sloglint: Options.ContextOnly=%s: %w", opts.ContextOnly, errInvalidValue)
+			}
+
+			switch opts.MsgFormat {
+			case "", "upper", "lower":
+			default:
+				return nil, fmt.Errorf("sloglint: Options.MsgFormat=%s: %w", opts.MsgFormat, errInvalidValue)
 			}
 
 			switch opts.KeyNamingCase {
@@ -103,9 +109,10 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
 	strVar(&opts.NoGlobal, "no-global", "enforce not using global loggers (all|default)")
 	strVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context (all|scope)")
-	boolVar(&opts.StaticMsg, "static-msg", "enforce using static log messages")
+	boolVar(&opts.StaticMsg, "static-msg", "enforce using static messages")
+	strVar(&opts.ContextOnly, "msg-format", "enforce message format (upper|lower)")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
-	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)")
+	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce key naming convention (snake|kebab|camel|pascal)")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
 
 	fset.Func("forbidden-keys", "enforce not using specific keys (comma-separated)", func(s string) error {
@@ -232,9 +239,9 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	if opts.MsgFormat != "" && msgPos >= 0 {
 		if msg, ok := call.Args[msgPos].(*ast.BasicLit); ok && msg.Kind == token.STRING {
-			ok := isValidMsgLiteral(opts.MsgFormat, msg)
-			if !ok {
-				pass.Reportf(call.Pos(), fmt.Sprintf("message literal should start with %s character", opts.MsgFormat))
+			msg.Value = msg.Value[1 : len(msg.Value)-1] // trim quotes/backticks.
+			if ok := isValidMsgFormat(msg.Value, opts.MsgFormat); !ok {
+				pass.Reportf(call.Pos(), "message should start with %scase character", opts.MsgFormat)
 			}
 		}
 	}
@@ -367,47 +374,30 @@ func isStaticMsg(msg ast.Expr) bool {
 	}
 }
 
-func isValidMsgLiteral(expectedFirstLetterCase string, msg *ast.BasicLit) bool {
-	expectedFirstLetterCase = strings.TrimSpace(expectedFirstLetterCase)
-	if expectedFirstLetterCase == "" {
-		// nothing is enforced so it's valid
+func isValidMsgFormat(msg, format string) bool {
+	runes := []rune(msg)
+	if len(runes) < 2 {
 		return true
 	}
 
-	rmsg := []rune(msg.Value)
+	first, second := runes[0], runes[1]
 
-	// NOTE: skip the first character which is quote or backtick for string literals
-	if len(rmsg) <= 3 {
-		return true
-	}
-	first, second := rmsg[1], rmsg[2]
-
-	switch strings.ToLower(expectedFirstLetterCase) {
+	switch format {
 	case "lower":
-		if !unicode.IsUpper(first) {
-			// everything is fine
+		if unicode.IsLower(first) {
 			return true
 		}
-
-		// NOTE: skip acronyms with punctuation, e.g. "U.S.A."
 		if unicode.IsPunct(second) {
-			return true
+			return true // e.g. "U.S.A."
 		}
-
-		// NOTE: also allow acronyms, e.g. "HTTP"
-		return unicode.IsUpper(second)
-
+		return unicode.IsUpper(second) // e.g. "HTTP"
 	case "upper":
-		if !unicode.IsLower(first) {
-			// everything is fine
+		if unicode.IsUpper(first) {
 			return true
 		}
-
-		// NOTE: also allow special case, e.g. "iPhone"
-		return unicode.IsUpper(second)
-
+		return unicode.IsUpper(second) // e.g. "iPhone"
 	default:
-		return true
+		panic("unreachable")
 	}
 }
 

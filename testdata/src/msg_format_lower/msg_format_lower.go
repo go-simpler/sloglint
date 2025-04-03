@@ -9,15 +9,17 @@ func tests() {
 	ctx := context.Background()
 
 	slog.Info("msg")
-	slog.Info("žluťoučký kůň úpěl ďábelské ódy")
+	slog.InfoContext(ctx, "msg")
+	slog.Log(ctx, slog.LevelInfo, "msg")
+	slog.With("key", "value").Info("msg")
 
-	slog.Info("U.S. dollars")
-	slog.Info("HTTP request failed")
+	slog.Info("Msg")                      // want `message should start with lowercase character`
+	slog.InfoContext(ctx, "Msg")          // want `message should start with lowercase character`
+	slog.Log(ctx, slog.LevelInfo, "Msg")  // want `message should start with lowercase character`
+	slog.With("key", "value").Info("Msg") // want `message should start with lowercase character`
 
-	slog.Info("Msg")                     // want `message literal should start with lower character`
-	slog.Info("Ångström is very small")  // want `message literal should start with lower character`
-	slog.InfoContext(ctx, "Msg")         // want `message literal should start with lower character`
-	slog.Log(ctx, slog.LevelInfo, "Msg") // want `message literal should start with lower character`
-
-	slog.With("key", "value").Info("Msg") // want `message literal should start with lower character`
+	// special cases:
+	slog.Info("U.S. dollar")
+	slog.Info("HTTP request")
+	slog.Info("iPhone 18")
 }

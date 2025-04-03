@@ -70,12 +70,12 @@ func TestAnalyzer(t *testing.T) {
 		analysistest.Run(t, testdata, analyzer, "forbidden_keys")
 	})
 
-	t.Run("message format lower", func(t *testing.T) {
+	t.Run("message format (lower)", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{MsgFormat: "lower"})
 		analysistest.Run(t, testdata, analyzer, "msg_format_lower")
 	})
 
-	t.Run("message format upper", func(t *testing.T) {
+	t.Run("message format (upper)", func(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{MsgFormat: "upper"})
 		analysistest.Run(t, testdata, analyzer, "msg_format_upper")
 	})
