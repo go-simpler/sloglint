@@ -113,19 +113,21 @@ slog.Info("a user has logged in", "user_id", 42)
 
 ### Message style
 
-Initial letter can be checked for `upper` or `lower` case.
+The `msg-style` option causes `sloglint` to check log messages for a particular style.
 
-This rule makes best effort to allow acronyms like `HTTP` or `U.S.A.` to be recognized when checking against `lower` case and special words like `iPhone` for `upper` case.
+Possible values are `lowercased` (report messages that begin with an uppercase letter)...
 
 ```go
 slog.Info("Msg") // sloglint: message should be lowercased
 ```
 
-This report can be fixed with lowercasing the initial character:
+...and `capitalized` (report messages that begin with a lowercase letter):
 
 ```go
-slog.Info("msg")
+slog.Info("msg") // sloglint: message should be capitalized
 ```
+
+Special cases such as acronyms (e.g. `HTTP`, `U.S.`) are ignored.
 
 ### No raw keys
 
