@@ -22,6 +22,10 @@ func TestOptions(t *testing.T) {
 			opts: Options{ContextOnly: "-"},
 			err:  errInvalidValue,
 		},
+		"MsgStyle: invalid value": {
+			opts: Options{MsgStyle: "-"},
+			err:  errInvalidValue,
+		},
 		"KeyNamingCase: invalid value": {
 			opts: Options{KeyNamingCase: "-"},
 			err:  errInvalidValue,

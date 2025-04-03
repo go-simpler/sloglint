@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/ettle/strcase"
 	"golang.org/x/tools/go/analysis"
@@ -26,9 +27,10 @@ type Options struct {
 	AttrOnly       bool     // Enforce using attributes only (overrides NoMixedArgs, incompatible with KVOnly).
 	NoGlobal       string   // Enforce not using global loggers ("all" or "default").
 	ContextOnly    string   // Enforce using methods that accept a context ("all" or "scope").
-	StaticMsg      bool     // Enforce using static log messages.
+	StaticMsg      bool     // Enforce using static messages.
+	MsgStyle       string   // Enforce message style ("lowercased" or "capitalized").
 	NoRawKeys      bool     // Enforce using constants instead of raw keys.
-	KeyNamingCase  string   // Enforce a single key naming convention ("snake", "kebab", "camel", or "pascal").
+	KeyNamingCase  string   // Enforce key naming convention ("snake", "kebab", "camel", or "pascal").
 	ForbiddenKeys  []string // Enforce not using specific keys.
 	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
 }
@@ -59,6 +61,12 @@ func New(opts *Options) *analysis.Analyzer {
 			case "", "all", "scope":
 			default:
 				return nil, fmt.Errorf("sloglint: Options.ContextOnly=%s: %w", opts.ContextOnly, errInvalidValue)
+			}
+
+			switch opts.MsgStyle {
+			case "", styleLowercased, styleCapitalized:
+			default:
+				return nil, fmt.Errorf("sloglint: Options.MsgStyle=%s: %w", opts.MsgStyle, errInvalidValue)
 			}
 
 			switch opts.KeyNamingCase {
@@ -101,9 +109,10 @@ func flags(opts *Options) flag.FlagSet {
 	boolVar(&opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
 	strVar(&opts.NoGlobal, "no-global", "enforce not using global loggers (all|default)")
 	strVar(&opts.ContextOnly, "context-only", "enforce using methods that accept a context (all|scope)")
-	boolVar(&opts.StaticMsg, "static-msg", "enforce using static log messages")
+	boolVar(&opts.StaticMsg, "static-msg", "enforce using static messages")
+	strVar(&opts.MsgStyle, "msg-style", "enforce message style (lowercased|capitalized)")
 	boolVar(&opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
-	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce a single key naming convention (snake|kebab|camel|pascal)")
+	strVar(&opts.KeyNamingCase, "key-naming-case", "enforce key naming convention (snake|kebab|camel|pascal)")
 	boolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
 
 	fset.Func("forbidden-keys", "enforce not using specific keys (comma-separated)", func(s string) error {
@@ -155,6 +164,13 @@ var attrFuncs = map[string]struct{}{
 	"log/slog.Any":      {},
 }
 
+// message styles.
+const (
+	styleLowercased  = "lowercased"
+	styleCapitalized = "capitalized"
+)
+
+// key naming conventions.
 const (
 	snakeCase  = "snake"
 	kebabCase  = "kebab"
@@ -226,6 +242,15 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	// NOTE: "With" functions have no message argument and must be skipped.
 	if opts.StaticMsg && msgPos >= 0 && !isStaticMsg(call.Args[msgPos]) {
 		pass.Reportf(call.Pos(), "message should be a string literal or a constant")
+	}
+
+	if opts.MsgStyle != "" && msgPos >= 0 {
+		if msg, ok := call.Args[msgPos].(*ast.BasicLit); ok && msg.Kind == token.STRING {
+			msg.Value = msg.Value[1 : len(msg.Value)-1] // trim quotes/backticks.
+			if ok := isValidMsgStyle(msg.Value, opts.MsgStyle); !ok {
+				pass.Reportf(call.Pos(), "message should be %s", opts.MsgStyle)
+			}
+		}
 	}
 
 	// NOTE: we assume that the arguments have already been validated by govet.
@@ -353,6 +378,33 @@ func isStaticMsg(msg ast.Expr) bool {
 		return msg.Obj != nil && msg.Obj.Kind == ast.Con
 	default:
 		return false
+	}
+}
+
+func isValidMsgStyle(msg, style string) bool {
+	runes := []rune(msg)
+	if len(runes) < 2 {
+		return true
+	}
+
+	first, second := runes[0], runes[1]
+
+	switch style {
+	case styleLowercased:
+		if unicode.IsLower(first) {
+			return true
+		}
+		if unicode.IsPunct(second) {
+			return true // e.g. "U.S.A."
+		}
+		return unicode.IsUpper(second) // e.g. "HTTP"
+	case styleCapitalized:
+		if unicode.IsUpper(first) {
+			return true
+		}
+		return unicode.IsUpper(second) // e.g. "iPhone"
+	default:
+		panic("unreachable")
 	}
 }
 

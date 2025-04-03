@@ -69,4 +69,14 @@ func TestAnalyzer(t *testing.T) {
 		analyzer := sloglint.New(&sloglint.Options{ForbiddenKeys: []string{"foo_bar"}})
 		analysistest.Run(t, testdata, analyzer, "forbidden_keys")
 	})
+
+	t.Run("message style (lowercased)", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{MsgStyle: "lowercased"})
+		analysistest.Run(t, testdata, analyzer, "msg_style_lowercased")
+	})
+
+	t.Run("message style (capitalized)", func(t *testing.T) {
+		analyzer := sloglint.New(&sloglint.Options{MsgStyle: "capitalized"})
+		analysistest.Run(t, testdata, analyzer, "msg_style_capitalized")
+	})
 }
