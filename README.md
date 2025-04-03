@@ -20,7 +20,7 @@ With `sloglint` you can enforce various rules for `log/slog` based on your prefe
 * Enforce not using global loggers (optional)
 * Enforce using methods that accept a context (optional)
 * Enforce using static messages (optional)
-* Enforce message format (optional)
+* Enforce message style (optional)
 * Enforce using constants instead of raw keys (optional)
 * Enforce key naming convention (optional)
 * Enforce not using specific keys (optional)
@@ -111,15 +111,14 @@ The report can be fixed by moving dynamic values to arguments:
 slog.Info("a user has logged in", "user_id", 42)
 ```
 
-### Message format
+### Message style
 
 Initial letter can be checked for `upper` or `lower` case.
-When format is empty, no checking is done.
 
 This rule makes best effort to allow acronyms like `HTTP` or `U.S.A.` to be recognized when checking against `lower` case and special words like `iPhone` for `upper` case.
 
 ```go
-slog.Info("Msg") // sloglint: message should start with lowercase character
+slog.Info("Msg") // sloglint: message should be lowercased
 ```
 
 This report can be fixed with lowercasing the initial character:
