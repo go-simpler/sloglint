@@ -8,6 +8,7 @@ import (
 func tests() {
 	ctx := context.Background()
 
+	slog.Info("")
 	slog.Info("Msg")
 	slog.InfoContext(ctx, "Msg")
 	slog.Log(ctx, slog.LevelInfo, "Msg")
