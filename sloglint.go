@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"go/version"
 	"slices"
 	"strconv"
 	"strings"
@@ -77,7 +78,7 @@ func New(opts *Options) *analysis.Analyzer {
 				return nil, fmt.Errorf("sloglint: Options.KeyNamingCase=%s: %w", opts.KeyNamingCase, errInvalidValue)
 			}
 
-			if strings.HasPrefix(pass.Module.GoVersion, "1.24") {
+			if version.Compare("go"+pass.Module.GoVersion, "go1.24") >= 0 {
 				opts.go124 = true
 			}
 
