@@ -33,7 +33,7 @@ func TestAnalyzer(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			analyzer := New(&tt.opts)
 			testdata := analysistest.TestData()
-			analysistest.Run(t, testdata, analyzer, tt.dir)
+			analysistest.RunWithSuggestedFixes(t, testdata, analyzer, tt.dir)
 		})
 	}
 }
