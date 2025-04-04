@@ -246,9 +246,12 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	}
 
 	if opts.MsgStyle != "" && msgPos >= 0 {
-		if msg, ok := call.Args[msgPos].(*ast.BasicLit); ok && msg.Kind == token.STRING {
-			msg.Value = msg.Value[1 : len(msg.Value)-1] // trim quotes/backticks.
-			if ok := isValidMsgStyle(msg.Value, opts.MsgStyle); !ok {
+		if lit, ok := call.Args[msgPos].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+			value, err := strconv.Unquote(lit.Value)
+			if err != nil {
+				panic("unreachable") // string literals are always quoted.
+			}
+			if ok := isValidMsgStyle(value, opts.MsgStyle); !ok {
 				pass.Reportf(call.Pos(), "message should be %s", opts.MsgStyle)
 			}
 		}
@@ -377,6 +380,9 @@ func isStaticMsg(msg ast.Expr) bool {
 	case *ast.Ident: // e.g. const msg = "msg"; slog.Info(msg)
 		return msg.Obj != nil && msg.Obj.Kind == ast.Con
 	case *ast.BinaryExpr: // e.g. slog.Info("x" + "y")
+		if msg.Op != token.ADD {
+			panic("unreachable") // only + can be applied to strings.
+		}
 		return isStaticMsg(msg.X) && isStaticMsg(msg.Y)
 	default:
 		return false
@@ -457,10 +463,9 @@ func getKeyName(key ast.Expr) (string, bool) {
 		}
 	}
 	if lit, ok := key.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		// string literals are always quoted.
 		value, err := strconv.Unquote(lit.Value)
 		if err != nil {
-			panic("unreachable")
+			panic("unreachable") // string literals are always quoted.
 		}
 		return value, true
 	}
