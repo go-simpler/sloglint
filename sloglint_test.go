@@ -1,82 +1,61 @@
-package sloglint_test
+package sloglint
 
 import (
+	"errors"
 	"testing"
 
-	"go-simpler.org/sloglint"
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
 func TestAnalyzer(t *testing.T) {
-	testdata := analysistest.TestData()
+	tests := map[string]struct {
+		opts Options
+		dir  string
+	}{
+		"no mixed arguments":          {Options{NoMixedArgs: true}, "no_mixed_args"},
+		"key-value pairs only":        {Options{KVOnly: true}, "kv_only"},
+		"attributes only":             {Options{AttrOnly: true}, "attr_only"},
+		"no global (all)":             {Options{NoGlobal: "all"}, "no_global_all"},
+		"no global (default)":         {Options{NoGlobal: "default"}, "no_global_default"},
+		"context only (all)":          {Options{ContextOnly: "all"}, "context_only_all"},
+		"context only (scope)":        {Options{ContextOnly: "scope"}, "context_only_scope"},
+		"static message":              {Options{StaticMsg: true}, "static_msg"},
+		"no raw keys":                 {Options{NoRawKeys: true}, "no_raw_keys"},
+		"key naming case":             {Options{KeyNamingCase: "snake"}, "key_naming_case"},
+		"arguments on separate lines": {Options{ArgsOnSepLines: true}, "args_on_sep_lines"},
+		"forbidden keys":              {Options{ForbiddenKeys: []string{"foo_bar"}}, "forbidden_keys"},
+		"message style (lowercased)":  {Options{MsgStyle: "lowercased"}, "msg_style_lowercased"},
+		"message style (capitalized)": {Options{MsgStyle: "capitalized"}, "msg_style_capitalized"},
+		"slog.DiscardHandler":         {Options{go124: true}, "discard_handler"},
+	}
 
-	t.Run("no mixed arguments", func(t *testing.T) {
-		analyzer := sloglint.New(nil)
-		analysistest.Run(t, testdata, analyzer, "no_mixed_args")
-	})
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			analyzer := New(&tt.opts)
+			testdata := analysistest.TestData()
+			analysistest.Run(t, testdata, analyzer, tt.dir)
+		})
+	}
+}
 
-	t.Run("key-value pairs only", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{KVOnly: true})
-		analysistest.Run(t, testdata, analyzer, "kv_only")
-	})
+func TestOptions(t *testing.T) {
+	tests := map[string]struct {
+		opts Options
+		err  error
+	}{
+		"KVOnly+AttrOnly: incompatible": {Options{KVOnly: true, AttrOnly: true}, errIncompatible},
+		"NoGlobal: invalid value":       {Options{NoGlobal: "-"}, errInvalidValue},
+		"ContextOnly: invalid value":    {Options{ContextOnly: "-"}, errInvalidValue},
+		"MsgStyle: invalid value":       {Options{MsgStyle: "-"}, errInvalidValue},
+		"KeyNamingCase: invalid value":  {Options{KeyNamingCase: "-"}, errInvalidValue},
+	}
 
-	t.Run("attributes only", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{AttrOnly: true})
-		analysistest.Run(t, testdata, analyzer, "attr_only")
-	})
-
-	t.Run("no global (all)", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{NoGlobal: "all"})
-		analysistest.Run(t, testdata, analyzer, "no_global_all")
-	})
-
-	t.Run("no global (default)", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{NoGlobal: "default"})
-		analysistest.Run(t, testdata, analyzer, "no_global_default")
-	})
-
-	t.Run("context only (all)", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{ContextOnly: "all"})
-		analysistest.Run(t, testdata, analyzer, "context_only_all")
-	})
-
-	t.Run("context only (scope)", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{ContextOnly: "scope"})
-		analysistest.Run(t, testdata, analyzer, "context_only_scope")
-	})
-
-	t.Run("static message", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{StaticMsg: true})
-		analysistest.Run(t, testdata, analyzer, "static_msg")
-	})
-
-	t.Run("no raw keys", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{NoRawKeys: true})
-		analysistest.Run(t, testdata, analyzer, "no_raw_keys")
-	})
-
-	t.Run("key naming case", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{KeyNamingCase: "snake"})
-		analysistest.Run(t, testdata, analyzer, "key_naming_case")
-	})
-
-	t.Run("arguments on separate lines", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{ArgsOnSepLines: true})
-		analysistest.Run(t, testdata, analyzer, "args_on_sep_lines")
-	})
-
-	t.Run("forbidden keys", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{ForbiddenKeys: []string{"foo_bar"}})
-		analysistest.Run(t, testdata, analyzer, "forbidden_keys")
-	})
-
-	t.Run("message style (lowercased)", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{MsgStyle: "lowercased"})
-		analysistest.Run(t, testdata, analyzer, "msg_style_lowercased")
-	})
-
-	t.Run("message style (capitalized)", func(t *testing.T) {
-		analyzer := sloglint.New(&sloglint.Options{MsgStyle: "capitalized"})
-		analysistest.Run(t, testdata, analyzer, "msg_style_capitalized")
-	})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			analyzer := New(&test.opts)
+			if _, err := analyzer.Run(nil); !errors.Is(err, test.err) {
+				t.Errorf("errors.Is() mismatch\ngot:  %v\nwant: %v", err, test.err)
+			}
+		})
+	}
 }

@@ -33,6 +33,8 @@ type Options struct {
 	KeyNamingCase  string   // Enforce key naming convention ("snake", "kebab", "camel", or "pascal").
 	ForbiddenKeys  []string // Enforce not using specific keys.
 	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
+
+	go124 bool
 }
 
 // New creates a new sloglint analyzer.
@@ -73,6 +75,10 @@ func New(opts *Options) *analysis.Analyzer {
 			case "", snakeCase, kebabCase, camelCase, pascalCase:
 			default:
 				return nil, fmt.Errorf("sloglint: Options.KeyNamingCase=%s: %w", opts.KeyNamingCase, errInvalidValue)
+			}
+
+			if strings.HasPrefix(pass.Module.GoVersion, "1.24") {
+				opts.go124 = true
 			}
 
 			run(pass, opts)
@@ -206,6 +212,17 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	}
 
 	name := fn.FullName()
+
+	if opts.go124 && (name == "log/slog.NewTextHandler" || name == "log/slog.NewJSONHandler") {
+		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
+			if obj := pass.TypesInfo.ObjectOf(sel.Sel); obj != nil {
+				if obj.Pkg().Name() == "io" && obj.Name() == "Discard" {
+					pass.Reportf(call.Pos(), "use slog.DiscardHandler instead")
+				}
+			}
+		}
+	}
+
 	funcInfo, ok := slogFuncs[name]
 	if !ok {
 		return
@@ -293,8 +310,8 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	if opts.NoRawKeys {
 		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
-			if selector, ok := key.(*ast.SelectorExpr); ok {
-				key = selector.Sel // the key is defined in another package, e.g. pkg.ConstKey.
+			if sel, ok := key.(*ast.SelectorExpr); ok {
+				key = sel.Sel // the key is defined in another package, e.g. pkg.ConstKey.
 			}
 			isConst := false
 			if ident, ok := key.(*ast.Ident); ok {
@@ -343,11 +360,11 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 }
 
 func isGlobalLoggerUsed(info *types.Info, call ast.Expr) bool {
-	selector, ok := call.(*ast.SelectorExpr)
+	sel, ok := call.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	ident, ok := selector.X.(*ast.Ident)
+	ident, ok := sel.X.(*ast.Ident)
 	if !ok {
 		return false
 	}
