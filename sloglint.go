@@ -239,6 +239,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	}
 
 	msgPos := funcInfo.argsPos - 1
+
 	// NOTE: "With" functions have no message argument and must be skipped.
 	if opts.StaticMsg && msgPos >= 0 && !isStaticMsg(call.Args[msgPos]) {
 		pass.Reportf(call.Pos(), "message should be a string literal or a constant")
@@ -267,7 +268,6 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		if typ == nil {
 			continue
 		}
-
 		switch typ.String() {
 		case "string":
 			keys = append(keys, args[i])
@@ -376,6 +376,8 @@ func isStaticMsg(msg ast.Expr) bool {
 		return msg.Kind == token.STRING
 	case *ast.Ident: // e.g. const msg = "msg"; slog.Info(msg)
 		return msg.Obj != nil && msg.Obj.Kind == ast.Con
+	case *ast.BinaryExpr: // e.g. slog.Info("x" + "y")
+		return isStaticMsg(msg.X) && isStaticMsg(msg.Y)
 	default:
 		return false
 	}
