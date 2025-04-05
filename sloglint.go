@@ -214,25 +214,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	name := fn.FullName()
 
-	if opts.go124 && (name == "log/slog.NewTextHandler" || name == "log/slog.NewJSONHandler") {
-		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
-			if obj := pass.TypesInfo.ObjectOf(sel.Sel); obj != nil {
-				if obj.Pkg().Name() == "io" && obj.Name() == "Discard" {
-					pass.Report(analysis.Diagnostic{
-						Pos:     call.Pos(),
-						Message: "use slog.DiscardHandler instead",
-						SuggestedFixes: []analysis.SuggestedFix{{
-							TextEdits: []analysis.TextEdit{{
-								Pos:     call.Pos(),
-								End:     call.End(),
-								NewText: []byte("slog.DiscardHandler"),
-							}},
-						}},
-					})
-				}
-			}
-		}
-	}
+	checkDiscardHandler(opts, pass, name, call)
 
 	funcInfo, ok := slogFuncs[name]
 	if !ok {
@@ -368,6 +350,42 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	if opts.ArgsOnSepLines && areArgsOnSameLine(pass.Fset, call, keys, attrs) {
 		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 	}
+}
+
+func checkDiscardHandler(opts *Options, pass *analysis.Pass, name string, call *ast.CallExpr) {
+	if !opts.go124 {
+		return
+	}
+
+	if name != "log/slog.NewTextHandler" && name != "log/slog.NewJSONHandler" {
+		return
+	}
+
+	sel, ok := call.Args[0].(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+
+	obj := pass.TypesInfo.ObjectOf(sel.Sel)
+	if obj == nil {
+		return
+	}
+
+	if obj.Pkg().Name() != "io" || obj.Name() != "Discard" {
+		return
+	}
+
+	pass.Report(analysis.Diagnostic{
+		Pos:     call.Pos(),
+		Message: "use slog.DiscardHandler instead",
+		SuggestedFixes: []analysis.SuggestedFix{{
+			TextEdits: []analysis.TextEdit{{
+				Pos:     call.Pos(),
+				End:     call.End(),
+				NewText: []byte("slog.DiscardHandler"),
+			}},
+		}},
+	})
 }
 
 func isGlobalLoggerUsed(info *types.Info, call ast.Expr) bool {
