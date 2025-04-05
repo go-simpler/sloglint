@@ -6,6 +6,6 @@ import (
 )
 
 func _() {
-	_ = slog.DiscardHandler() // want `use slog.DiscardHandler instead`
-	_ = slog.DiscardHandler() // want `use slog.DiscardHandler instead`
+	_ = slog.DiscardHandler // want `use slog.DiscardHandler instead`
+	_ = slog.DiscardHandler // want `use slog.DiscardHandler instead`
 }

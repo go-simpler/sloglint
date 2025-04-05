@@ -225,7 +225,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 							TextEdits: []analysis.TextEdit{{
 								Pos:     call.Pos(),
 								End:     call.End(),
-								NewText: []byte("slog.DiscardHandler()"),
+								NewText: []byte("slog.DiscardHandler"),
 							}},
 						}},
 					})
