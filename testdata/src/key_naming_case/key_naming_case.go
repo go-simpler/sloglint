@@ -10,7 +10,7 @@ const (
 	kebabKey = "foo-bar"
 )
 
-func tests() {
+func _() {
 	slog.Info("msg")
 	slog.Info("msg", "foo_bar", 1)
 	slog.Info("msg", snakeKey, 1)

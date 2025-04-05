@@ -1,0 +1,77 @@
+package key_naming_case
+
+import (
+	"context"
+	"log/slog"
+)
+
+const (
+	snakeKey = "foo_bar"
+	kebabKey = "foo-bar"
+)
+
+func _() {
+	slog.Info("msg")
+	slog.Info("msg", "foo_bar", 1)
+	slog.Info("msg", snakeKey, 1)
+	slog.Info("msg", slog.Int("foo_bar", 1))
+	slog.Info("msg", slog.Int(snakeKey, 1))
+	slog.Info("msg", slog.Attr{})
+	slog.Info("msg", slog.Attr{"foo_bar", slog.IntValue(1)})
+	slog.Info("msg", slog.Attr{snakeKey, slog.IntValue(1)})
+	slog.Info("msg", slog.Attr{Key: "foo_bar"})
+	slog.Info("msg", slog.Attr{Key: snakeKey})
+	slog.Info("msg", slog.Attr{Key: "foo_bar", Value: slog.IntValue(1)})
+	slog.Info("msg", slog.Attr{Key: snakeKey, Value: slog.IntValue(1)})
+	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"})
+	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: snakeKey})
+
+	slog.Info("msg", "foo_bar", 1)                                       // want `keys should be written in snake_case`
+	slog.Info("msg", "foo_bar", 1)                                       // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Int("foo_bar", 1))                             // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Int("foo_bar", 1))                             // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{"foo_bar", slog.IntValue(1)})             // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{"foo_bar", slog.IntValue(1)})             // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{Key: "foo_bar"})                          // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{Key: "foo_bar"})                          // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{Key: "foo_bar", Value: slog.IntValue(1)}) // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{Key: "foo_bar", Value: slog.IntValue(1)}) // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"}) // want `keys should be written in snake_case`
+	slog.Info("msg", slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"}) // want `keys should be written in snake_case`
+
+	// With snake_case key
+	slog.Info("msg")
+	slog.With("foo_bar", 1).Info("msg")
+	slog.With(snakeKey, 1).Info("msg")
+	slog.With(slog.Int("foo_bar", 1)).Info("msg")
+	slog.With(slog.Int(snakeKey, 1)).Info("msg")
+	slog.With(slog.Attr{}).Info("msg")
+	slog.With(slog.Attr{"foo_bar", slog.IntValue(1)}).Info("msg")
+	slog.With(slog.Attr{snakeKey, slog.IntValue(1)}).Info("msg")
+	slog.With(slog.Attr{Key: "foo_bar"}).Info("msg")
+	slog.With(slog.Attr{Key: snakeKey}).Info("msg")
+	slog.With(slog.Attr{Key: "foo_bar", Value: slog.IntValue(1)}).Info("msg")
+	slog.With(slog.Attr{Key: snakeKey, Value: slog.IntValue(1)}).Info("msg")
+	slog.With(slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"}).Info("msg")
+	slog.With(slog.Attr{Value: slog.IntValue(1), Key: snakeKey}).Info("msg")
+
+	slog.With("foo_bar", 1).Info("msg")                                       // want `keys should be written in snake_case`
+	slog.With("foo_bar", 1).Info("msg")                                       // want `keys should be written in snake_case`
+	slog.With(slog.Int("foo_bar", 1)).Info("msg")                             // want `keys should be written in snake_case`
+	slog.With(slog.Int("foo_bar", 1)).Info("msg")                             // want `keys should be written in snake_case`
+	slog.With(slog.Attr{"foo_bar", slog.IntValue(1)}).Info("msg")             // want `keys should be written in snake_case`
+	slog.With(slog.Attr{"foo_bar", slog.IntValue(1)}).Info("msg")             // want `keys should be written in snake_case`
+	slog.With(slog.Attr{Key: "foo_bar"}).Info("msg")                          // want `keys should be written in snake_case`
+	slog.With(slog.Attr{Key: "foo_bar"}).Info("msg")                          // want `keys should be written in snake_case`
+	slog.With(slog.Attr{Key: "foo_bar", Value: slog.IntValue(1)}).Info("msg") // want `keys should be written in snake_case`
+	slog.With(slog.Attr{Key: "foo_bar", Value: slog.IntValue(1)}).Info("msg") // want `keys should be written in snake_case`
+	slog.With(slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"}).Info("msg") // want `keys should be written in snake_case`
+	slog.With(slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"}).Info("msg") // want `keys should be written in snake_case`
+
+	slog.LogAttrs(context.TODO(), slog.LevelInfo, "msg", slog.Attr{Value: slog.IntValue(1), Key: "foo_bar"}) // want `keys should be written in snake_case`
+}
+
+func issue35() {
+	intAttr := slog.Int
+	slog.Info("msg", intAttr("foo_bar", 1))
+}

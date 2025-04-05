@@ -320,11 +320,40 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		})
 	}
 
+	checkKeysNaming(opts, pass, keys, attrs)
+
+	if len(opts.ForbiddenKeys) > 0 {
+		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
+			if name, ok := getKeyName(key); ok && slices.Contains(opts.ForbiddenKeys, name) {
+				pass.Reportf(key.Pos(), "%q key is forbidden and should not be used", name)
+			}
+		})
+	}
+
+	if opts.ArgsOnSepLines && areArgsOnSameLine(pass.Fset, call, keys, attrs) {
+		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
+	}
+}
+
+func checkKeysNaming(opts *Options, pass *analysis.Pass, keys, attrs []ast.Expr) {
 	checkKeyNamingCase := func(caseFn func(string) string, caseName string) {
 		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
-			if name, ok := getKeyName(key); ok && name != caseFn(name) {
-				pass.Reportf(call.Pos(), "keys should be written in %s", caseName)
+			name, ok := getKeyName(key)
+			if !ok || name == caseFn(name) {
+				return
 			}
+
+			pass.Report(analysis.Diagnostic{
+				Pos:     key.Pos(),
+				Message: fmt.Sprintf("keys should be written in %s", caseName),
+				SuggestedFixes: []analysis.SuggestedFix{{
+					TextEdits: []analysis.TextEdit{{
+						Pos:     key.Pos(),
+						End:     key.End(),
+						NewText: []byte(strconv.Quote(caseFn(name))),
+					}},
+				}},
+			})
 		})
 	}
 
@@ -337,18 +366,6 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		checkKeyNamingCase(strcase.ToCamel, "camelCase")
 	case pascalCase:
 		checkKeyNamingCase(strcase.ToPascal, "PascalCase")
-	}
-
-	if len(opts.ForbiddenKeys) > 0 {
-		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
-			if name, ok := getKeyName(key); ok && slices.Contains(opts.ForbiddenKeys, name) {
-				pass.Reportf(key.Pos(), "%q key is forbidden and should not be used", name)
-			}
-		})
-	}
-
-	if opts.ArgsOnSepLines && areArgsOnSameLine(pass.Fset, call, keys, attrs) {
-		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
 	}
 }
 
