@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"go/version"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
@@ -302,11 +303,13 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	}
 
 	if opts.NoRawKeys {
-		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
+		for key := range AllKeys(pass.TypesInfo, keys, attrs) {
 			if sel, ok := key.(*ast.SelectorExpr); ok {
 				key = sel.Sel // the key is defined in another package, e.g. pkg.ConstKey.
 			}
+
 			isConst := false
+
 			if ident, ok := key.(*ast.Ident); ok {
 				if obj := pass.TypesInfo.ObjectOf(ident); obj != nil {
 					if _, ok := obj.(*types.Const); ok {
@@ -314,20 +317,21 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 					}
 				}
 			}
+
 			if !isConst {
 				pass.Reportf(key.Pos(), "raw keys should not be used")
 			}
-		})
+		}
 	}
 
 	checkKeysNaming(opts, pass, keys, attrs)
 
 	if len(opts.ForbiddenKeys) > 0 {
-		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
+		for key := range AllKeys(pass.TypesInfo, keys, attrs) {
 			if name, ok := getKeyName(key); ok && slices.Contains(opts.ForbiddenKeys, name) {
 				pass.Reportf(key.Pos(), "%q key is forbidden and should not be used", name)
 			}
-		})
+		}
 	}
 
 	if opts.ArgsOnSepLines && areArgsOnSameLine(pass.Fset, call, keys, attrs) {
@@ -337,7 +341,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 func checkKeysNaming(opts *Options, pass *analysis.Pass, keys, attrs []ast.Expr) {
 	checkKeyNamingCase := func(caseFn func(string) string, caseName string) {
-		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
+		for key := range AllKeys(pass.TypesInfo, keys, attrs) {
 			name, ok := getKeyName(key)
 			if !ok || name == caseFn(name) {
 				return
@@ -354,7 +358,7 @@ func checkKeysNaming(opts *Options, pass *analysis.Pass, keys, attrs []ast.Expr)
 					}},
 				}},
 			})
-		})
+		}
 	}
 
 	switch opts.KeyNamingCase {
@@ -479,36 +483,52 @@ func isValidMsgStyle(msg, style string) bool {
 	}
 }
 
-func forEachKey(info *types.Info, keys, attrs []ast.Expr, fn func(key ast.Expr)) {
-	for _, key := range keys {
-		fn(key)
-	}
-
-	for _, attr := range attrs {
-		switch attr := attr.(type) {
-		case *ast.CallExpr: // e.g. slog.Int()
-			callee := typeutil.StaticCallee(info, attr)
-			if callee == nil {
-				continue
+func AllKeys(info *types.Info, keys, attrs []ast.Expr) iter.Seq[ast.Expr] {
+	return func(yield func(key ast.Expr) bool) {
+		for _, key := range keys {
+			if !yield(key) {
+				return
 			}
-			if _, ok := attrFuncs[callee.FullName()]; !ok {
-				continue
-			}
-			fn(attr.Args[0])
+		}
 
-		case *ast.CompositeLit: // slog.Attr{}
-			switch len(attr.Elts) {
-			case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
-				if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
-					fn(kv.Value)
+		for _, attr := range attrs {
+			switch attr := attr.(type) {
+			case *ast.CallExpr: // e.g. slog.Int()
+				callee := typeutil.StaticCallee(info, attr)
+				if callee == nil {
+					continue
 				}
-			case 2: // slog.Attr{Key: ..., Value: ...} | slog.Attr{Value: ..., Key: ...} | slog.Attr{..., ...}
-				if kv, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
-					fn(kv.Value)
-				} else if kv, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
-					fn(kv.Value)
-				} else {
-					fn(attr.Elts[0])
+				if _, ok := attrFuncs[callee.FullName()]; !ok {
+					continue
+				}
+
+				if !yield(attr.Args[0]) {
+					return
+				}
+
+			case *ast.CompositeLit: // slog.Attr{}
+				switch len(attr.Elts) {
+				case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
+					if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
+						if !yield(kv.Value) {
+							return
+						}
+					}
+
+				case 2: // slog.Attr{Key: ..., Value: ...} | slog.Attr{Value: ..., Key: ...} | slog.Attr{..., ...}
+					if kv, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
+						if !yield(kv.Value) {
+							return
+						}
+					} else if kv, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
+						if !yield(kv.Value) {
+							return
+						}
+					} else {
+						if !yield(attr.Elts[0]) {
+							return
+						}
+					}
 				}
 			}
 		}
