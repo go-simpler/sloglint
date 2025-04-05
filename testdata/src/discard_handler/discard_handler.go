@@ -5,7 +5,7 @@ import (
 	"log/slog"
 )
 
-func tests() {
-	slog.NewTextHandler(io.Discard, nil) // want `use slog.DiscardHandler instead`
-	slog.NewJSONHandler(io.Discard, nil) // want `use slog.DiscardHandler instead`
+func _() {
+	_ = slog.NewTextHandler(io.Discard, nil) // want `use slog.DiscardHandler instead`
+	_ = slog.NewJSONHandler(io.Discard, nil) // want `use slog.DiscardHandler instead`
 }

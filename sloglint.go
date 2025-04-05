@@ -218,7 +218,17 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
 			if obj := pass.TypesInfo.ObjectOf(sel.Sel); obj != nil {
 				if obj.Pkg().Name() == "io" && obj.Name() == "Discard" {
-					pass.Reportf(call.Pos(), "use slog.DiscardHandler instead")
+					pass.Report(analysis.Diagnostic{
+						Pos:     call.Pos(),
+						Message: "use slog.DiscardHandler instead",
+						SuggestedFixes: []analysis.SuggestedFix{{
+							TextEdits: []analysis.TextEdit{{
+								Pos:     call.Pos(),
+								End:     call.End(),
+								NewText: []byte("slog.DiscardHandler"),
+							}},
+						}},
+					})
 				}
 			}
 		}
