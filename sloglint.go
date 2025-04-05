@@ -252,7 +252,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	// NOTE: "With" functions have no message argument and must be skipped.
 	if opts.StaticMsg && msgPos >= 0 && !isStaticMsg(call.Args[msgPos]) {
-		pass.Reportf(call.Pos(), "message should be a string literal or a constant")
+		pass.Reportf(call.Args[msgPos].Pos(), "message should be a string literal or a constant")
 	}
 
 	if opts.MsgStyle != "" && msgPos >= 0 {
@@ -262,7 +262,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 				panic("unreachable") // string literals are always quoted.
 			}
 			if ok := isValidMsgStyle(value, opts.MsgStyle); !ok {
-				pass.Reportf(call.Pos(), "message should be %s", opts.MsgStyle)
+				pass.Reportf(call.Args[msgPos].Pos(), "message should be %s", opts.MsgStyle)
 			}
 		}
 	}
@@ -315,7 +315,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 				}
 			}
 			if !isConst {
-				pass.Reportf(call.Pos(), "raw keys should not be used")
+				pass.Reportf(key.Pos(), "raw keys should not be used")
 			}
 		})
 	}
@@ -342,7 +342,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 	if len(opts.ForbiddenKeys) > 0 {
 		forEachKey(pass.TypesInfo, keys, attrs, func(key ast.Expr) {
 			if name, ok := getKeyName(key); ok && slices.Contains(opts.ForbiddenKeys, name) {
-				pass.Reportf(call.Pos(), "%q key is forbidden and should not be used", name)
+				pass.Reportf(key.Pos(), "%q key is forbidden and should not be used", name)
 			}
 		})
 	}
