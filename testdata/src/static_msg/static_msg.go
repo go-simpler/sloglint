@@ -41,3 +41,8 @@ func tests() {
 	slog.Info("msg" + fmt.Sprintf("msg"))                     // want `message should be a string literal or a constant`
 	slog.Info("msg" + constMsg + varMsg + fmt.Sprintf("msg")) // want `message should be a string literal or a constant`
 }
+
+func issue92() {
+	slog.Info(constMsg)
+	slog.Info(anotherConstMsg)
+}
