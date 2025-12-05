@@ -25,6 +25,7 @@ With `sloglint` you can enforce various rules for `log/slog` based on your prefe
 * Enforce key naming convention (optional)
 * Enforce not using specific keys (optional)
 * Enforce putting arguments on separate lines (optional)
+* Enforce using only specific keys (optional)
 
 ## 📦 Install
 
@@ -197,6 +198,14 @@ slog.Info("a user has logged in",
     "user_id", 42,
     "ip_address", "192.0.2.0",
 )
+```
+
+### Allowed keys
+
+To enforce that each developer makes up his own key names which can lead to duplicates that make searching logs hard, the `allowed-keys` option causes `sloglint` to report the use of unallowed keys:
+
+```go
+slog.Info("a user has logged in", "reserved", 42) // sloglint: "reserved" key is not in the allowed key list and should not be used
 ```
 
 [1]: https://golangci-lint.run

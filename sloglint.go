@@ -34,6 +34,7 @@ type Options struct {
 	NoRawKeys      bool     // Enforce using constants instead of raw keys.
 	KeyNamingCase  string   // Enforce key naming convention ("snake", "kebab", "camel", or "pascal").
 	ForbiddenKeys  []string // Enforce not using specific keys.
+	AllowedKeys    []string // Enforce using only specific keys.
 	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
 
 	go124 bool
@@ -125,6 +126,11 @@ func flags(opts *Options) flag.FlagSet {
 
 	fset.Func("forbidden-keys", "enforce not using specific keys (comma-separated)", func(s string) error {
 		opts.ForbiddenKeys = append(opts.ForbiddenKeys, strings.Split(s, ",")...)
+		return nil
+	})
+
+	fset.Func("allowed-keys", "enforce using specific keys only (comma-separated)", func(s string) error {
+		opts.AllowedKeys = append(opts.AllowedKeys, strings.Split(s, ",")...)
 		return nil
 	})
 
@@ -322,6 +328,14 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node) {
 		for key := range AllKeys(pass.TypesInfo, keys, attrs) {
 			if name, ok := getKeyName(key); ok && slices.Contains(opts.ForbiddenKeys, name) {
 				pass.Reportf(key.Pos(), "%q key is forbidden and should not be used", name)
+			}
+		}
+	}
+
+	if len(opts.AllowedKeys) > 0 {
+		for key := range AllKeys(pass.TypesInfo, keys, attrs) {
+			if name, ok := getKeyName(key); ok && !slices.Contains(opts.AllowedKeys, name) {
+				pass.Reportf(key.Pos(), "%q key is not in the allowed keys list and should not be used", name)
 			}
 		}
 	}
