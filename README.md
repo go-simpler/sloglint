@@ -202,7 +202,7 @@ slog.Info("a user has logged in",
 
 ### Allowed keys
 
-To enforce that each developer makes up his own key names which can lead to duplicates that make searching logs hard, the `allowed-keys` option causes `sloglint` to report the use of unallowed keys:
+To enforce that each developer does not makes up his own key names, the `allowed-keys` option causes `sloglint` to report the use of unallowed keys:
 
 ```go
 slog.Info("a user has logged in", "reserved", 42) // sloglint: "reserved" key is not in the allowed key list and should not be used
