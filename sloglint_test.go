@@ -12,21 +12,22 @@ func TestAnalyzer(t *testing.T) {
 		opts Options
 		dir  string
 	}{
-		"no mixed arguments":          {Options{NoMixedArgs: true}, "no_mixed_args"},
-		"key-value pairs only":        {Options{KVOnly: true}, "kv_only"},
-		"attributes only":             {Options{AttrOnly: true}, "attr_only"},
-		"no global (all)":             {Options{NoGlobal: "all"}, "no_global_all"},
-		"no global (default)":         {Options{NoGlobal: "default"}, "no_global_default"},
-		"context only (all)":          {Options{ContextOnly: "all"}, "context_only_all"},
-		"context only (scope)":        {Options{ContextOnly: "scope"}, "context_only_scope"},
-		"static message":              {Options{StaticMsg: true}, "static_msg"},
-		"no raw keys":                 {Options{NoRawKeys: true}, "no_raw_keys"},
-		"key naming case":             {Options{KeyNamingCase: "snake"}, "key_naming_case"},
-		"arguments on separate lines": {Options{ArgsOnSepLines: true}, "args_on_sep_lines"},
-		"forbidden keys":              {Options{ForbiddenKeys: []string{"foo_bar"}}, "forbidden_keys"},
-		"message style (lowercased)":  {Options{MsgStyle: "lowercased"}, "msg_style_lowercased"},
-		"message style (capitalized)": {Options{MsgStyle: "capitalized"}, "msg_style_capitalized"},
-		"slog.DiscardHandler":         {Options{go124: true}, "discard_handler"},
+		"no mixed arguments":                {Options{NoMixedArgs: true}, "no_mixed_args"},
+		"key-value pairs only":              {Options{KVOnly: true}, "kv_only"},
+		"attributes only":                   {Options{AttrOnly: true}, "attr_only"},
+		"no global (all)":                   {Options{NoGlobal: "all"}, "no_global_all"},
+		"no global (default)":               {Options{NoGlobal: "default"}, "no_global_default"},
+		"context only (all)":                {Options{ContextOnly: "all"}, "context_only_all"},
+		"context only (scope)":              {Options{ContextOnly: "scope"}, "context_only_scope"},
+		"static message":                    {Options{StaticMsg: true}, "static_msg"},
+		"no raw keys":                       {Options{NoRawKeys: true}, "no_raw_keys"},
+		"key naming case":                   {Options{KeyNamingCase: "snake"}, "key_naming_case"},
+		"arguments on separate lines":       {Options{ArgsOnSepLines: true}, "args_on_sep_lines"},
+		"forbidden keys":                    {Options{ForbiddenKeys: []string{"foo_bar"}}, "forbidden_keys"},
+		"forbidden keys with context scope": {Options{ForbiddenKeys: []string{"foo_bar"}, ContextOnly: "scope"}, "forbidden_keys"},
+		"message style (lowercased)":        {Options{MsgStyle: "lowercased"}, "msg_style_lowercased"},
+		"message style (capitalized)":       {Options{MsgStyle: "capitalized"}, "msg_style_capitalized"},
+		"slog.DiscardHandler":               {Options{go124: true}, "discard_handler"},
 	}
 
 	for name, tt := range tests {
