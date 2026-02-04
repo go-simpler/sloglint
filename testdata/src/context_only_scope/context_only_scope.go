@@ -17,6 +17,8 @@ func tests(ctx context.Context) {
 		slog.InfoContext(ctx, "msg")
 	}
 
+	_ = slog.With("key", "value")
+
 	_ = func() {
 		slog.Info("msg") // want `InfoContext should be used instead`
 		slog.InfoContext(ctx, "msg")

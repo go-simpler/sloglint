@@ -190,22 +190,20 @@ func run(pass *analysis.Pass, opts *Options) {
 	visitor := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	filter := []ast.Node{(*ast.CallExpr)(nil)}
 
+	visitor.Preorder(filter, func(node ast.Node) {
+		visit(pass, opts, node)
+	})
+
 	// WithStack is ~2x slower than Preorder, use it only when stack is needed.
 	if opts.ContextOnly == "scope" {
 		visitor.WithStack(filter, func(node ast.Node, _ bool, stack []ast.Node) bool {
-			visit(pass, opts, node, stack)
+			visitforscope(pass, node, stack)
 			return false
 		})
-		return
 	}
-
-	visitor.Preorder(filter, func(node ast.Node) {
-		visit(pass, opts, node, nil)
-	})
 }
 
-// NOTE: stack is nil if Preorder is used.
-func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) {
+func visit(pass *analysis.Pass, opts *Options, node ast.Node) {
 	call := node.(*ast.CallExpr)
 
 	fn := typeutil.StaticCallee(pass.TypesInfo, call)
@@ -235,15 +233,9 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	// NOTE: "With" functions are not checked for context.Context.
 	if !funcInfo.skipContextCheck {
-		switch opts.ContextOnly {
-		case "all":
+		if opts.ContextOnly == "all" {
 			typ := pass.TypesInfo.TypeOf(call.Args[0])
 			if typ != nil && typ.String() != "context.Context" {
-				pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
-			}
-		case "scope":
-			typ := pass.TypesInfo.TypeOf(call.Args[0])
-			if typ != nil && typ.String() != "context.Context" && isContextInScope(pass.TypesInfo, stack) {
 				pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
 			}
 		}
@@ -336,6 +328,28 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) 
 
 	if opts.ArgsOnSepLines && areArgsOnSameLine(pass.Fset, call, keys, attrs) {
 		pass.Reportf(call.Pos(), "arguments should be put on separate lines")
+	}
+}
+
+func visitforscope(pass *analysis.Pass, node ast.Node, stack []ast.Node) {
+	call := node.(*ast.CallExpr)
+
+	fn := typeutil.StaticCallee(pass.TypesInfo, call)
+	if fn == nil {
+		return
+	}
+
+	funcInfo, ok := slogFuncs[fn.FullName()]
+	if !ok {
+		return
+	}
+
+	// NOTE: "With" functions are not checked for context.Context.
+	if !funcInfo.skipContextCheck {
+		typ := pass.TypesInfo.TypeOf(call.Args[0])
+		if typ != nil && typ.String() != "context.Context" && isContextInScope(pass.TypesInfo, stack) {
+			pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
+		}
 	}
 }
 
