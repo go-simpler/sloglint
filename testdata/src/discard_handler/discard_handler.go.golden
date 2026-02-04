@@ -1,7 +1,6 @@
 package discard_handler
 
 import (
-	"io"
 	"log/slog"
 )
 
