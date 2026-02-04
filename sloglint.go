@@ -203,7 +203,6 @@ func run(pass *analysis.Pass, opts *Options) {
 	}
 }
 
-// NOTE: stack is nil if Preorder is used.
 func visit(pass *analysis.Pass, opts *Options, node ast.Node) {
 	call := node.(*ast.CallExpr)
 
@@ -340,10 +339,17 @@ func visitforscope(pass *analysis.Pass, node ast.Node, stack []ast.Node) {
 		return
 	}
 
+	funcInfo, ok := slogFuncs[fn.FullName()]
+	if !ok {
+		return
+	}
+
 	// NOTE: "With" functions are not checked for context.Context.
-	typ := pass.TypesInfo.TypeOf(call.Args[0])
-	if typ != nil && typ.String() != "context.Context" && isContextInScope(pass.TypesInfo, stack) {
-		pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
+	if !funcInfo.skipContextCheck {
+		typ := pass.TypesInfo.TypeOf(call.Args[0])
+		if typ != nil && typ.String() != "context.Context" && isContextInScope(pass.TypesInfo, stack) {
+			pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
+		}
 	}
 }
 
