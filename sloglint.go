@@ -285,6 +285,11 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node) {
 			keys = append(keys, args[i])
 			i++ // skip the value.
 		case "log/slog.Attr":
+			if call, ok := args[i].(*ast.CallExpr); ok {
+				if fn := typeutil.StaticCallee(pass.TypesInfo, call); fn != nil && fn.FullName() == "log/slog.Group" {
+					continue
+				}
+			}
 			attrs = append(attrs, args[i])
 		case "[]any", "[]log/slog.Attr":
 			continue // the last argument may be an unpacked slice, skip it.
