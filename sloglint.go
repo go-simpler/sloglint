@@ -138,27 +138,27 @@ func flags(opts *Options) flag.FlagSet {
 }
 
 var slogFuncs = map[string]struct {
-	argsPos          int
-	skipContextCheck bool
+	argsPos   int  // The position of key-value arguments in the function signature, starting from 0.
+	hasCtxAlt bool // Whether an alternative that accepts a context as the first argument exists.
 }{
-	"log/slog.With":                   {argsPos: 0, skipContextCheck: true},
+	"log/slog.With":                   {argsPos: 0},
 	"log/slog.Log":                    {argsPos: 3},
 	"log/slog.LogAttrs":               {argsPos: 3},
-	"log/slog.Debug":                  {argsPos: 1},
-	"log/slog.Info":                   {argsPos: 1},
-	"log/slog.Warn":                   {argsPos: 1},
-	"log/slog.Error":                  {argsPos: 1},
+	"log/slog.Debug":                  {argsPos: 1, hasCtxAlt: true},
+	"log/slog.Info":                   {argsPos: 1, hasCtxAlt: true},
+	"log/slog.Warn":                   {argsPos: 1, hasCtxAlt: true},
+	"log/slog.Error":                  {argsPos: 1, hasCtxAlt: true},
 	"log/slog.DebugContext":           {argsPos: 2},
 	"log/slog.InfoContext":            {argsPos: 2},
 	"log/slog.WarnContext":            {argsPos: 2},
 	"log/slog.ErrorContext":           {argsPos: 2},
-	"(*log/slog.Logger).With":         {argsPos: 0, skipContextCheck: true},
+	"(*log/slog.Logger).With":         {argsPos: 0},
 	"(*log/slog.Logger).Log":          {argsPos: 3},
 	"(*log/slog.Logger).LogAttrs":     {argsPos: 3},
-	"(*log/slog.Logger).Debug":        {argsPos: 1},
-	"(*log/slog.Logger).Info":         {argsPos: 1},
-	"(*log/slog.Logger).Warn":         {argsPos: 1},
-	"(*log/slog.Logger).Error":        {argsPos: 1},
+	"(*log/slog.Logger).Debug":        {argsPos: 1, hasCtxAlt: true},
+	"(*log/slog.Logger).Info":         {argsPos: 1, hasCtxAlt: true},
+	"(*log/slog.Logger).Warn":         {argsPos: 1, hasCtxAlt: true},
+	"(*log/slog.Logger).Error":        {argsPos: 1, hasCtxAlt: true},
 	"(*log/slog.Logger).DebugContext": {argsPos: 2},
 	"(*log/slog.Logger).InfoContext":  {argsPos: 2},
 	"(*log/slog.Logger).WarnContext":  {argsPos: 2},
@@ -237,13 +237,10 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node) {
 		}
 	}
 
-	// NOTE: "With" functions are not checked for context.Context.
-	if !funcInfo.skipContextCheck {
-		if opts.ContextOnly == "all" {
-			typ := pass.TypesInfo.TypeOf(call.Args[0])
-			if typ != nil && typ.String() != "context.Context" {
-				pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
-			}
+	if opts.ContextOnly == "all" && funcInfo.hasCtxAlt {
+		typ := pass.TypesInfo.TypeOf(call.Args[0])
+		if typ != nil && typ.String() != "context.Context" {
+			pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
 		}
 	}
 
@@ -366,10 +363,9 @@ func visitforscope(pass *analysis.Pass, node ast.Node, stack []ast.Node) {
 		return
 	}
 
-	// NOTE: "With" functions are not checked for context.Context.
-	if !funcInfo.skipContextCheck {
+	if funcInfo.hasCtxAlt && isContextInScope(pass.TypesInfo, stack) {
 		typ := pass.TypesInfo.TypeOf(call.Args[0])
-		if typ != nil && typ.String() != "context.Context" && isContextInScope(pass.TypesInfo, stack) {
+		if typ != nil && typ.String() != "context.Context" {
 			pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
 		}
 	}
@@ -464,15 +460,18 @@ func isContextInScope(info *types.Info, stack []ast.Node) bool {
 		if !ok {
 			continue
 		}
-		params := decl.Type.Params
-		if len(params.List) == 0 || len(params.List[0].Names) == 0 {
+
+		params := decl.Type.Params.List
+		if len(params) == 0 || len(params[0].Names) == 0 {
 			continue
 		}
-		typ := info.TypeOf(params.List[0].Names[0])
+
+		typ := info.TypeOf(params[0].Names[0])
 		if typ != nil && typ.String() == "context.Context" {
 			return true
 		}
 	}
+
 	return false
 }
 
