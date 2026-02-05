@@ -486,7 +486,7 @@ func isStaticMsg(info *types.Info, msg ast.Expr) bool {
 }
 
 func isValidMsgStyle(msg, style string) bool {
-	runes := []rune(msg)
+	runes := []rune(strings.TrimSpace(msg))
 	if len(runes) < 2 {
 		return true
 	}
