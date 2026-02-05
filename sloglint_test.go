@@ -28,6 +28,7 @@ func TestAnalyzer(t *testing.T) {
 		"message style (lowercased)":        {Options{MsgStyle: "lowercased"}, "msg_style_lowercased"},
 		"message style (capitalized)":       {Options{MsgStyle: "capitalized"}, "msg_style_capitalized"},
 		"slog.DiscardHandler":               {Options{go124: true}, "discard_handler"},
+		"allowed keys":                      {Options{AllowedKeys: []string{"foo_bar"}}, "allowed_keys"},
 	}
 
 	for name, tt := range tests {
