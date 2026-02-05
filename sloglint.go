@@ -266,7 +266,10 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node) {
 		}
 	}
 
-	// NOTE: we assume that the arguments have already been validated by govet.
+	if len(call.Args) < funcInfo.argsPos {
+		return
+	}
+
 	args := call.Args[funcInfo.argsPos:]
 	if len(args) == 0 {
 		return
