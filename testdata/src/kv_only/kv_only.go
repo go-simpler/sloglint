@@ -6,6 +6,7 @@ func tests() {
 	slog.Info("msg")
 	slog.Info("msg", "foo", 1)
 	slog.Info("msg", "foo", 1, "bar", 2)
+	slog.Info("msg", "foo", 1, "bar", 2, slog.Group("baz"))
 	slog.With("foo", 1).Info("msg")
 	slog.With("foo", 1, "bar", 2).Info("msg")
 
