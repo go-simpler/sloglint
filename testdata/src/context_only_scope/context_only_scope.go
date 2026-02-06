@@ -3,21 +3,12 @@ package context_only_scope
 import (
 	"context"
 	"log/slog"
+	"net/http"
 )
 
-func tests(ctx context.Context) {
+func withContext(ctx context.Context) {
 	slog.Info("msg") // want `InfoContext should be used instead`
 	slog.InfoContext(ctx, "msg")
-
-	slog.With("key", "value").Info("msg") // want `InfoContext should be used instead`
-	slog.With("key", "value").InfoContext(ctx, "msg")
-
-	if true {
-		slog.Info("msg") // want `InfoContext should be used instead`
-		slog.InfoContext(ctx, "msg")
-	}
-
-	_ = slog.With("key", "value")
 
 	_ = func() {
 		slog.Info("msg") // want `InfoContext should be used instead`
@@ -25,6 +16,22 @@ func tests(ctx context.Context) {
 	}
 }
 
-func noctx() {
+func withRequest(r *http.Request) {
+	slog.Info("msg") // want `InfoContext should be used instead`
+	slog.InfoContext(r.Context(), "msg")
+
+	_ = func() {
+		slog.Info("msg") // want `InfoContext should be used instead`
+		slog.InfoContext(r.Context(), "msg")
+	}
+}
+
+func withoutContext() {
 	slog.Info("msg")
+	slog.InfoContext(context.Background(), "msg")
+
+	_ = func(ctx context.Context) {
+		slog.Info("msg") // want `InfoContext should be used instead`
+		slog.InfoContext(ctx, "msg")
+	}
 }

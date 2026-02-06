@@ -203,7 +203,7 @@ func run(pass *analysis.Pass, opts *Options) {
 	// WithStack is ~2x slower than Preorder, use it only when stack is needed.
 	if opts.ContextOnly == "scope" {
 		visitor.WithStack(filter, func(node ast.Node, _ bool, stack []ast.Node) bool {
-			visitforscope(pass, node, stack)
+			visitWithStack(pass, opts, node, stack)
 			return false
 		})
 	}
@@ -350,7 +350,7 @@ func visit(pass *analysis.Pass, opts *Options, node ast.Node) {
 	}
 }
 
-func visitforscope(pass *analysis.Pass, node ast.Node, stack []ast.Node) {
+func visitWithStack(pass *analysis.Pass, opts *Options, node ast.Node, stack []ast.Node) {
 	call := node.(*ast.CallExpr)
 
 	fn := typeutil.StaticCallee(pass.TypesInfo, call)
@@ -363,7 +363,7 @@ func visitforscope(pass *analysis.Pass, node ast.Node, stack []ast.Node) {
 		return
 	}
 
-	if funcInfo.hasCtxAlt && isContextInScope(pass.TypesInfo, stack) {
+	if opts.ContextOnly == "scope" && funcInfo.hasCtxAlt && isContextInScope(pass.TypesInfo, stack) {
 		typ := pass.TypesInfo.TypeOf(call.Args[0])
 		if typ != nil && typ.String() != "context.Context" {
 			pass.Reportf(call.Pos(), "%sContext should be used instead", fn.Name())
@@ -456,18 +456,21 @@ func isGlobalLoggerUsed(info *types.Info, call ast.Expr) bool {
 
 func isContextInScope(info *types.Info, stack []ast.Node) bool {
 	for i := len(stack) - 1; i >= 0; i-- {
-		decl, ok := stack[i].(*ast.FuncDecl)
-		if !ok {
-			continue
+		var params []*ast.Field
+
+		switch fn := stack[i].(type) {
+		case *ast.FuncDecl:
+			params = fn.Type.Params.List
+		case *ast.FuncLit:
+			params = fn.Type.Params.List
 		}
 
-		params := decl.Type.Params.List
 		if len(params) == 0 || len(params[0].Names) == 0 {
 			continue
 		}
 
 		typ := info.TypeOf(params[0].Names[0])
-		if typ != nil && typ.String() == "context.Context" {
+		if typ != nil && (typ.String() == "context.Context" || typ.String() == "*net/http.Request") {
 			return true
 		}
 	}
