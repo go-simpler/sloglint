@@ -355,12 +355,12 @@ func isContextInScope(info *types.Info, cursor inspector.Cursor) bool {
 
 func isStaticMsg(info *types.Info, msg ast.Expr) bool {
 	switch msg := msg.(type) {
-	case *ast.BasicLit: // slog.Info("msg")
+	case *ast.BasicLit: // e.g. slog.Info("msg")
 		return msg.Kind == token.STRING
-	case *ast.Ident: // const msg = "msg"; slog.Info(msg)
+	case *ast.Ident: // e.g. slog.Info(constMsg)
 		_, isConst := info.ObjectOf(msg).(*types.Const)
 		return isConst
-	case *ast.BinaryExpr: // slog.Info("x" + "y")
+	case *ast.BinaryExpr: // e.g. slog.Info("x" + "y")
 		if msg.Op != token.ADD {
 			panic("unreachable") // Only "+" can be applied to strings.
 		}
@@ -384,14 +384,14 @@ func isValidMsgStyle(msg, style string) bool {
 			return true
 		}
 		if unicode.IsPunct(second) {
-			return true // e.g. "U.S.A.".
+			return true // e.g. "U.S.A."
 		}
-		return unicode.IsUpper(second) // e.g. "HTTP".
+		return unicode.IsUpper(second) // e.g. "HTTP"
 	case msgStyleCapitalized:
 		if unicode.IsUpper(first) {
 			return true
 		}
-		return unicode.IsUpper(second) // e.g. "iPhone".
+		return unicode.IsUpper(second) // e.g. "iPhone"
 	default:
 		panic("unreachable")
 	}
@@ -407,12 +407,12 @@ func allKeys(info *types.Info, keys, attrs []ast.Expr) iter.Seq[ast.Expr] {
 
 		for _, attr := range attrs {
 			switch attr := attr.(type) {
-			case *ast.CallExpr: // slog.Int()
-				callee := typeutil.StaticCallee(info, attr)
-				if callee == nil {
+			case *ast.CallExpr: // slog.Int(..., ...)
+				fn := typeutil.StaticCallee(info, attr)
+				if fn == nil {
 					continue
 				}
-				if _, ok := attrFuncs[callee.FullName()]; !ok {
+				if _, ok := attrFuncs[fn.FullName()]; !ok {
 					continue
 				}
 				if !yield(attr.Args[0]) {
@@ -421,24 +421,24 @@ func allKeys(info *types.Info, keys, attrs []ast.Expr) iter.Seq[ast.Expr] {
 
 			case *ast.CompositeLit: // slog.Attr{}
 				switch len(attr.Elts) {
-				case 1: // slog.Attr{Key: ...} | slog.Attr{Value: ...}
+				case 1:
 					if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
-						if !yield(kv.Value) {
+						if !yield(kv.Value) { // slog.Attr{Key: ...}
 							return
 						}
 					}
 
-				case 2: // slog.Attr{Key: ..., Value: ...} | slog.Attr{Value: ..., Key: ...} | slog.Attr{..., ...}
+				case 2:
 					if kv, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
-						if !yield(kv.Value) {
+						if !yield(kv.Value) { // slog.Attr{Key: ..., Value: ...}
 							return
 						}
 					} else if kv, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
-						if !yield(kv.Value) {
+						if !yield(kv.Value) { // slog.Attr{Value: ..., Key: ...}
 							return
 						}
 					} else {
-						if !yield(attr.Elts[0]) {
+						if !yield(attr.Elts[0]) { // slog.Attr{..., ...}
 							return
 						}
 					}
