@@ -10,10 +10,10 @@ import (
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
-var version = "dev" // injected at build time.
+var version = "dev" // Injected at build time.
 
 func main() {
-	// override the builtin -V flag.
+	// Override the builtin -V flag.
 	flag.Var(versionFlag{}, "V", "print version and exit")
 	singlechecker.Main(sloglint.New(nil))
 }
