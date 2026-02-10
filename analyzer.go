@@ -133,7 +133,7 @@ func analyze(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 	}
 
 	for _, check := range checks {
-		check(pass, opts, slogFuncCall{
+		check(pass, opts, &slogFuncCall{
 			fn:     fn,
 			expr:   call,
 			cursor: cursor,

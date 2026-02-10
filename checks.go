@@ -25,7 +25,7 @@ type slogFuncCall struct {
 	attrs  []ast.Expr
 }
 
-var checks = []func(*analysis.Pass, *Options, slogFuncCall){
+var checks = []func(*analysis.Pass, *Options, *slogFuncCall){
 	noMixedArgs,
 	kvOnly,
 	attrOnly,
@@ -41,25 +41,25 @@ var checks = []func(*analysis.Pass, *Options, slogFuncCall){
 	discardHandler,
 }
 
-func noMixedArgs(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func noMixedArgs(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if opts.NoMixedArgs && len(call.keys) > 0 && len(call.attrs) > 0 {
 		pass.Reportf(call.expr.Pos(), "key-value pairs and attributes should not be mixed")
 	}
 }
 
-func kvOnly(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func kvOnly(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if opts.KVOnly && len(call.attrs) > 0 {
 		pass.Reportf(call.expr.Pos(), "attributes should not be used")
 	}
 }
 
-func attrOnly(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func attrOnly(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if opts.AttrOnly && len(call.keys) > 0 {
 		pass.Reportf(call.expr.Pos(), "key-value pairs should not be used")
 	}
 }
 
-func noGlobal(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func noGlobal(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	switch call.fn.Name() {
 	case "Log", "LogAttrs",
 		"Debug", "Info", "Warn", "Error",
@@ -104,7 +104,7 @@ func noGlobal(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func contextOnly(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func contextOnly(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	switch call.fn.Name() {
 	case "Debug", "Info", "Warn", "Error":
 	default:
@@ -145,7 +145,7 @@ func contextOnly(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func staticMsg(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func staticMsg(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if !opts.StaticMsg || call.msg == nil {
 		return
 	}
@@ -173,7 +173,7 @@ func staticMsg(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func msgStyle(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func msgStyle(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if opts.MsgStyle == "" || call.msg == nil {
 		return
 	}
@@ -218,7 +218,7 @@ func msgStyle(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	pass.Reportf(call.msg.Pos(), "message should be %s", opts.MsgStyle)
 }
 
-func noRawKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func noRawKeys(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if !opts.NoRawKeys {
 		return
 	}
@@ -242,7 +242,7 @@ func noRawKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func keyNamingCase(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func keyNamingCase(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	var caseFn func(string) string
 	var caseName string
 
@@ -278,7 +278,7 @@ func keyNamingCase(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func allowedKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func allowedKeys(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if len(opts.AllowedKeys) == 0 {
 		return
 	}
@@ -290,7 +290,7 @@ func allowedKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func forbiddenKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func forbiddenKeys(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if len(opts.ForbiddenKeys) == 0 {
 		return
 	}
@@ -302,7 +302,7 @@ func forbiddenKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func argsOnSepLines(pass *analysis.Pass, opts *Options, call slogFuncCall) {
+func argsOnSepLines(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 	if !opts.ArgsOnSepLines {
 		return
 	}
@@ -323,7 +323,7 @@ func argsOnSepLines(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 }
 
-func discardHandler(pass *analysis.Pass, _ *Options, call slogFuncCall) {
+func discardHandler(pass *analysis.Pass, _ *Options, call *slogFuncCall) {
 	switch call.fn.Name() {
 	case "NewTextHandler", "NewJSONHandler":
 	default:
