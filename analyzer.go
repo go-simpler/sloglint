@@ -41,12 +41,10 @@ func New(opts *Options) *analysis.Analyzer {
 	}
 }
 
-type slogFuncInfo struct {
+var slogFuncs = map[string]struct {
 	msgPos  int // The position of the "msg string" argument in the function signature, starting from 0.
 	argsPos int // The position of the "args ...any" argument in the function signature, starting from 0.
-}
-
-var slogFuncs = map[string]slogFuncInfo{
+}{
 	"log/slog.Log":                    {msgPos: 2, argsPos: 3},
 	"log/slog.LogAttrs":               {msgPos: 2, argsPos: 3},
 	"log/slog.Debug":                  {msgPos: 0, argsPos: 1},
@@ -197,7 +195,7 @@ func allKeys(info *types.Info, keys, attrs []ast.Expr) iter.Seq[ast.Expr] {
 	}
 }
 
-func getKeyName(key ast.Expr) (string, bool) {
+func keyName(key ast.Expr) (string, bool) {
 	if ident, ok := key.(*ast.Ident); ok {
 		if ident.Obj == nil || ident.Obj.Decl == nil || ident.Obj.Kind != ast.Con {
 			return "", false

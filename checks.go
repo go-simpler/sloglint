@@ -260,7 +260,7 @@ func keyNamingCase(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 
 	for key := range allKeys(pass.TypesInfo, call.keys, call.attrs) {
-		name, ok := getKeyName(key)
+		name, ok := keyName(key)
 		if !ok || name == caseFn(name) {
 			return
 		}
@@ -284,7 +284,7 @@ func allowedKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 
 	for key := range allKeys(pass.TypesInfo, call.keys, call.attrs) {
-		if name, ok := getKeyName(key); ok && !slices.Contains(opts.AllowedKeys, name) {
+		if name, ok := keyName(key); ok && !slices.Contains(opts.AllowedKeys, name) {
 			pass.Reportf(key.Pos(), "%q key is not allowed and should not be used", name)
 		}
 	}
@@ -296,7 +296,7 @@ func forbiddenKeys(pass *analysis.Pass, opts *Options, call slogFuncCall) {
 	}
 
 	for key := range allKeys(pass.TypesInfo, call.keys, call.attrs) {
-		if name, ok := getKeyName(key); ok && slices.Contains(opts.ForbiddenKeys, name) {
+		if name, ok := keyName(key); ok && slices.Contains(opts.ForbiddenKeys, name) {
 			pass.Reportf(key.Pos(), "%q key is forbidden and should not be used", name)
 		}
 	}
