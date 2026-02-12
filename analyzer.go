@@ -56,6 +56,7 @@ var slogFuncs = map[string]struct {
 	"log/slog.WarnContext":            {msgPos: 1, argsPos: 2},
 	"log/slog.ErrorContext":           {msgPos: 1, argsPos: 2},
 	"log/slog.With":                   {msgPos: -1, argsPos: 0},
+	"log/slog.Group":                  {msgPos: -1, argsPos: 1},
 	"log/slog.NewTextHandler":         {msgPos: -1, argsPos: -1},
 	"log/slog.NewJSONHandler":         {msgPos: -1, argsPos: -1},
 	"(*log/slog.Logger).Log":          {msgPos: 2, argsPos: 3},
@@ -72,11 +73,11 @@ var slogFuncs = map[string]struct {
 }
 
 var attrFuncs = map[string]struct{}{
-	"log/slog.String":   {},
-	"log/slog.Int64":    {},
 	"log/slog.Int":      {},
+	"log/slog.Int64":    {},
 	"log/slog.Uint64":   {},
 	"log/slog.Float64":  {},
+	"log/slog.String":   {},
 	"log/slog.Bool":     {},
 	"log/slog.Time":     {},
 	"log/slog.Duration": {},

@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func withContext(ctx context.Context) {
+func _(ctx context.Context) {
 	slog.Info("msg") // want `InfoContext should be used instead`
 	slog.InfoContext(ctx, "msg")
 
@@ -16,7 +16,7 @@ func withContext(ctx context.Context) {
 	}
 }
 
-func withRequest(r *http.Request) {
+func _(r *http.Request) {
 	slog.Info("msg") // want `InfoContext should be used instead`
 	slog.InfoContext(r.Context(), "msg")
 
@@ -26,7 +26,7 @@ func withRequest(r *http.Request) {
 	}
 }
 
-func withoutContext() {
+func _() {
 	slog.Info("msg")
 	slog.InfoContext(context.Background(), "msg")
 
