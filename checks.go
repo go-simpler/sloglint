@@ -201,7 +201,7 @@ func msgStyle(pass *analysis.Pass, opts *Options, call *slogFuncCall) {
 			return
 		}
 		if unicode.IsPunct(second) {
-			return // e.g. "U.S.A."
+			return // e.g. "U.S."
 		}
 		if unicode.IsUpper(second) {
 			return // e.g. "HTTP"
