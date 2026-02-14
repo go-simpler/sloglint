@@ -3,10 +3,8 @@ package sloglint
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
-	"iter"
-	"strconv"
+	"go/version"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -23,7 +21,7 @@ func New(opts *Options) *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "sloglint",
 		Doc:      "Ensures consistent code style when using log/slog.",
-		URL:      "https://github.com/go-simpler/sloglint",
+		URL:      "https://go-simpler.org/sloglint",
 		Flags:    flags(opts),
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 		Run: func(pass *analysis.Pass) (any, error) {
@@ -32,8 +30,8 @@ func New(opts *Options) *analysis.Analyzer {
 			}
 
 			root := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector).Root()
-			for cursor := range root.Preorder(new(ast.CallExpr)) {
-				analyze(pass, opts, cursor)
+			for cursor := range root.Preorder(new(ast.CallExpr), new(ast.CompositeLit)) {
+				analyzeNode(pass, opts, cursor)
 			}
 
 			return nil, nil
@@ -72,25 +70,38 @@ var slogFuncs = map[string]struct {
 	"(*log/slog.Logger).With":         {msgPos: -1, argsPos: 0},
 }
 
-var attrFuncs = map[string]struct{}{
-	"log/slog.Int":      {},
-	"log/slog.Int64":    {},
-	"log/slog.Uint64":   {},
-	"log/slog.Float64":  {},
-	"log/slog.String":   {},
-	"log/slog.Bool":     {},
-	"log/slog.Time":     {},
-	"log/slog.Duration": {},
-	"log/slog.Group":    {},
-	"log/slog.Any":      {},
-}
+func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
+	node := cursor.Node()
+	if cl, ok := node.(*ast.CompositeLit); ok && typeName(pass.TypesInfo, cl) == "log/slog.Attr" {
+		analyzeAttrKey(pass, opts, cl)
+		return
+	}
 
-func analyze(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
-	call := cursor.Node().(*ast.CallExpr)
+	call, ok := node.(*ast.CallExpr)
+	if !ok {
+		return
+	}
 
 	fn := typeutil.StaticCallee(pass.TypesInfo, call)
 	if fn == nil {
 		return
+	}
+
+	switch fn.FullName() {
+	case "log/slog.Int",
+		"log/slog.Int64",
+		"log/slog.Uint64",
+		"log/slog.Float64",
+		"log/slog.String",
+		"log/slog.Bool",
+		"log/slog.Time",
+		"log/slog.Duration",
+		"log/slog.Any":
+		analyzeKey(pass, opts, call.Args[0])
+		return
+	case "log/slog.Group":
+		analyzeKey(pass, opts, call.Args[0])
+		// Special case: don't return here, we also need to analyze the group's arguments.
 	}
 
 	info, ok := slogFuncs[fn.FullName()]
@@ -98,123 +109,101 @@ func analyze(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		return
 	}
 
-	var msg ast.Expr
+	analyzeFunc(pass, opts, fn, call, cursor)
+
 	if info.msgPos >= 0 && len(call.Args) > info.msgPos {
-		msg = call.Args[info.msgPos]
+		analyzeMsg(pass, opts, call.Args[info.msgPos])
 	}
 
-	var args []ast.Expr
 	if info.argsPos >= 0 && len(call.Args) > info.argsPos {
-		args = call.Args[info.argsPos:]
+		analyzeArgs(pass, opts, call.Args[info.argsPos:])
 	}
+}
 
-	var keys []ast.Expr
-	var attrs []ast.Expr
+func analyzeFunc(pass *analysis.Pass, opts *Options, fn *types.Func, call *ast.CallExpr, cursor inspector.Cursor) {
+	if opts.NoGlobal != "" {
+		noGlobal(pass, fn, call, opts.NoGlobal == noGlobalDefault)
+	}
+	if opts.ContextOnly != "" {
+		contextOnly(pass, fn, call, cursor, opts.ContextOnly == contextOnlyScope)
+	}
+	v := pass.Module.GoVersion // Empty in test runs.
+	if v == "" || version.Compare("go"+v, "go1.24") >= 0 {
+		discardHandler(pass, call)
+	}
+}
+
+func analyzeMsg(pass *analysis.Pass, opts *Options, msg ast.Expr) {
+	if opts.StaticMsg {
+		staticMsg(pass, msg)
+	}
+	if opts.MsgStyle != "" {
+		msgStyle(pass, msg, opts.MsgStyle)
+	}
+}
+
+func analyzeArgs(pass *analysis.Pass, opts *Options, args []ast.Expr) {
+	var keys, attrs []ast.Expr
 
 	for i := 0; i < len(args); i++ {
 		typ := pass.TypesInfo.TypeOf(args[i])
 		if typ == nil {
 			continue
 		}
-
 		switch typ.String() {
 		case "string":
 			keys = append(keys, args[i])
+			analyzeKey(pass, opts, args[i])
 			i++ // Skip the value.
 		case "log/slog.Attr":
-			if call, ok := args[i].(*ast.CallExpr); ok {
-				if fn := typeutil.StaticCallee(pass.TypesInfo, call); fn != nil && fn.FullName() == "log/slog.Group" {
-					continue // Skip slog.Group() calls.
-				}
-			}
 			attrs = append(attrs, args[i])
 		case "[]any", "[]log/slog.Attr":
 			continue // The last argument may be an unpacked slice, skip it.
 		}
 	}
 
-	for _, check := range checks {
-		check(pass, opts, &slogFuncCall{
-			fn:     fn,
-			expr:   call,
-			cursor: cursor,
-			msg:    msg,
-			keys:   keys,
-			attrs:  attrs,
-		})
+	if opts.NoMixedArgs {
+		noMixedArgs(pass, keys, attrs)
+	}
+	if opts.KVOnly {
+		kvOnly(pass, attrs)
+	}
+	if opts.AttrOnly {
+		attrOnly(pass, keys)
+	}
+	if opts.ArgsOnSepLines {
+		argsOnSepLines(pass, keys, attrs)
 	}
 }
 
-func allKeys(info *types.Info, keys, attrs []ast.Expr) iter.Seq[ast.Expr] {
-	return func(yield func(key ast.Expr) bool) {
-		for _, key := range keys {
-			if !yield(key) {
-				return
-			}
-		}
-
-		for _, attr := range attrs {
-			switch attr := attr.(type) {
-			case *ast.CallExpr: // slog.Int(..., ...)
-				fn := typeutil.StaticCallee(info, attr)
-				if fn == nil {
-					continue
-				}
-				if _, ok := attrFuncs[fn.FullName()]; !ok {
-					continue
-				}
-				if !yield(attr.Args[0]) {
-					return
-				}
-
-			case *ast.CompositeLit: // slog.Attr{}
-				switch len(attr.Elts) {
-				case 1:
-					if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
-						if !yield(kv.Value) { // slog.Attr{Key: ...}
-							return
-						}
-					}
-
-				case 2:
-					if kv, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
-						if !yield(kv.Value) { // slog.Attr{Key: ..., Value: ...}
-							return
-						}
-					} else if kv, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
-						if !yield(kv.Value) { // slog.Attr{Value: ..., Key: ...}
-							return
-						}
-					} else {
-						if !yield(attr.Elts[0]) { // slog.Attr{..., ...}
-							return
-						}
-					}
-				}
-			}
-		}
+func analyzeKey(pass *analysis.Pass, opts *Options, key ast.Expr) {
+	if opts.NoRawKeys {
+		noRawKeys(pass, key)
+	}
+	if opts.KeyNamingCase != "" {
+		keyNamingCase(pass, key, opts.KeyNamingCase)
+	}
+	if len(opts.AllowedKeys) > 0 {
+		allowedKeys(pass, key, opts.AllowedKeys)
+	}
+	if len(opts.ForbiddenKeys) > 0 {
+		forbiddenKeys(pass, key, opts.ForbiddenKeys)
 	}
 }
 
-func keyName(key ast.Expr) (string, bool) {
-	if ident, ok := key.(*ast.Ident); ok {
-		if ident.Obj == nil || ident.Obj.Decl == nil || ident.Obj.Kind != ast.Con {
-			return "", false
+func analyzeAttrKey(pass *analysis.Pass, opts *Options, attr *ast.CompositeLit) {
+	switch len(attr.Elts) {
+	case 1:
+		if kv := attr.Elts[0].(*ast.KeyValueExpr); kv.Key.(*ast.Ident).Name == "Key" {
+			analyzeKey(pass, opts, kv.Value) // slog.Attr{Key: ...}
 		}
-		if spec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok && len(spec.Values) > 0 {
-			key = spec.Values[0] // TODO: Support len(spec.Values) > 1; e.g. const foo, bar = 1, 2.
+	case 2:
+		if kv, ok := attr.Elts[0].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
+			analyzeKey(pass, opts, kv.Value) // slog.Attr{Key: ..., Value: ...}
+		} else if kv, ok := attr.Elts[1].(*ast.KeyValueExpr); ok && kv.Key.(*ast.Ident).Name == "Key" {
+			analyzeKey(pass, opts, kv.Value) // slog.Attr{Value: ..., Key: ...}
+		} else {
+			analyzeKey(pass, opts, attr.Elts[0]) // slog.Attr{..., ...}
 		}
 	}
-
-	lit, ok := key.(*ast.BasicLit)
-	if !ok || lit.Kind != token.STRING {
-		return "", false
-	}
-
-	name, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		panic("unreachable") // String literals are always quoted.
-	}
-
-	return name, true
 }

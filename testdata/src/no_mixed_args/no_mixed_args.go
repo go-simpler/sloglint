@@ -6,6 +6,7 @@ import (
 )
 
 func _(ctx context.Context, logger *slog.Logger, args ...any) {
+	_ = slog.Attr{Key: "foo", Value: slog.IntValue(1)}
 	slog.Info("msg", args...)
 	slog.Info("msg", "foo", 1, "bar", 2)
 	slog.Info("msg", "foo", 1, slog.Int("bar", 2)) // want `key-value pairs and attributes should not be mixed`

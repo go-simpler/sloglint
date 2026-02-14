@@ -13,8 +13,8 @@ func _() {
 	slog.Info("msg", slog.Int("foo_bar", 1))
 	slog.Info("msg", slog.Int(snakeKey, 1))
 
-	slog.Info("msg", "foo_bar", 1)           // want `keys should be written in snake_case`
-	slog.Info("msg", "foo_bar", 1)           // want `keys should be written in snake_case`
-	slog.Info("msg", slog.Int("foo_bar", 1)) // want `keys should be written in snake_case`
-	slog.Info("msg", slog.Int("foo_bar", 1)) // want `keys should be written in snake_case`
+	slog.Info("msg", "foo_bar", 1)           // want `keys should be written in snake case`
+	slog.Info("msg", "foo_bar", 1)           // want `keys should be written in snake case`
+	slog.Info("msg", slog.Int("foo_bar", 1)) // want `keys should be written in snake case`
+	slog.Info("msg", slog.Int("foo_bar", 1)) // want `keys should be written in snake case`
 }

@@ -5,6 +5,6 @@ import "log/slog"
 var logger *slog.Logger
 
 func _() {
-	slog.Info("msg")   // want `global logger should not be used`
+	slog.Info("msg")   // want `default logger should not be used`
 	logger.Info("msg") // want `global logger should not be used`
 }
