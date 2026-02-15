@@ -8,7 +8,7 @@ import (
 const foo = "foo"
 
 func Foo(value int) slog.Attr {
-	return slog.Int("foo", value)
+	return slog.Int(foo, value)
 }
 
 func _() {
