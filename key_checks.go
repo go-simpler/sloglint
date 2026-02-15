@@ -29,31 +29,31 @@ func keyNamingCase(pass *analysis.Pass, key ast.Expr, caseName string) {
 		return
 	}
 
-	var newName string
+	var caseFn func(string) string
 	switch caseName {
 	case keyNamingCaseSnake:
-		newName = strcase.ToSnake(name)
+		caseFn = strcase.ToSnake
 	case keyNamingCaseKebab:
-		newName = strcase.ToKebab(name)
+		caseFn = strcase.ToKebab
 	case keyNamingCaseCamel:
-		newName = strcase.ToCamel(name)
+		caseFn = strcase.ToCamel
 	case keyNamingCasePascal:
-		newName = strcase.ToPascal(name)
+		caseFn = strcase.ToPascal
 	}
 
-	if name == newName {
+	if name == caseFn(name) {
 		return
 	}
 
 	pass.Report(analysis.Diagnostic{
 		Pos:     key.Pos(),
 		End:     key.End(),
-		Message: fmt.Sprintf("keys should be written in %s case", caseName),
+		Message: fmt.Sprintf("keys should be written in %s", caseFn(caseName+" case")),
 		SuggestedFixes: []analysis.SuggestedFix{{
 			TextEdits: []analysis.TextEdit{{
 				Pos:     key.Pos(),
 				End:     key.End(),
-				NewText: strconv.AppendQuote(nil, newName),
+				NewText: strconv.AppendQuote(nil, caseFn(name)),
 			}},
 		}},
 	})
