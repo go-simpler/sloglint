@@ -4,9 +4,23 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"strconv"
 	"strings"
 )
+
+// Func describes a function to analyze, e.g. [slog.Info].
+type Func struct {
+	// The full name of the function, including the package, e.g. "log/slog.Info".
+	// If the function is a method, the receiver type must be wrapped in parentheses, e.g. "(*log/slog.Logger).Info".
+	Name string
+	// The position of the "msg string" argument in the function signature, starting from 0.
+	// If there is no message in the function, a negative value must be passed.
+	MsgPos int
+	// The position of the "args ...any" argument in the function signature, starting from 0.
+	// If there are no arguments in the function, a negative value must be passed.
+	ArgsPos int
+	// Whether this is a function from the standard [log/slog] package.
+	standard bool
+}
 
 // Options contains options for the sloglint analyzer.
 type Options struct {
@@ -22,6 +36,7 @@ type Options struct {
 	AllowedKeys    []string // Enforce using only specific keys.
 	ForbiddenKeys  []string // Enforce not using specific keys.
 	ArgsOnSepLines bool     // Enforce putting arguments on separate lines.
+	CustomFuncs    []Func   // Custom functions to analyze in addition to the standard [log/slog] functions.
 }
 
 // Possible values for [Options.NoGlobal].
@@ -88,42 +103,38 @@ func (opts *Options) validate() error {
 }
 
 func flags(opts *Options) flag.FlagSet {
-	fset := flag.NewFlagSet("sloglint", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sloglint", flag.ContinueOnError)
 
-	boolVar(fset, &opts.NoMixedArgs, "no-mixed-args", "enforce not mixing key-value pairs and attributes (default true)")
-	boolVar(fset, &opts.KVOnly, "kv-only", "enforce using key-value pairs only (overrides -no-mixed-args, incompatible with -attr-only)")
-	boolVar(fset, &opts.AttrOnly, "attr-only", "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
-	stringVar(fset, &opts.NoGlobal, "no-global", "enforce not using global loggers (all|default)")
-	stringVar(fset, &opts.ContextOnly, "context-only", "enforce using methods that accept a context (all|scope)")
-	boolVar(fset, &opts.StaticMsg, "static-msg", "enforce using static messages")
-	stringVar(fset, &opts.MsgStyle, "msg-style", "enforce message style (lowercased|capitalized)")
-	boolVar(fset, &opts.NoRawKeys, "no-raw-keys", "enforce using constants instead of raw keys")
-	stringVar(fset, &opts.KeyNamingCase, "key-naming-case", "enforce key naming convention (snake|kebab|camel|pascal)")
-	sliceVar(fset, &opts.AllowedKeys, "allowed-keys", "enforce using specific keys only (comma-separated)")
-	sliceVar(fset, &opts.ForbiddenKeys, "forbidden-keys", "enforce not using specific keys (comma-separated)")
-	boolVar(fset, &opts.ArgsOnSepLines, "args-on-sep-lines", "enforce putting arguments on separate lines")
+	fs.BoolVar(&opts.NoMixedArgs, "no-mixed-args", opts.NoMixedArgs, "enforce not mixing key-value pairs and attributes")
+	fs.BoolVar(&opts.KVOnly, "kv-only", opts.KVOnly, "enforce using key-value pairs only (overrides -no-mixed-args, incompatible with -attr-only)")
+	fs.BoolVar(&opts.AttrOnly, "attr-only", opts.AttrOnly, "enforce using attributes only (overrides -no-mixed-args, incompatible with -kv-only)")
+	fs.StringVar(&opts.NoGlobal, "no-global", opts.NoGlobal, "enforce not using global loggers (all|default)")
+	fs.StringVar(&opts.ContextOnly, "context-only", opts.ContextOnly, "enforce using methods that accept a context (all|scope)")
+	fs.BoolVar(&opts.StaticMsg, "static-msg", opts.StaticMsg, "enforce using static messages")
+	fs.StringVar(&opts.MsgStyle, "msg-style", opts.MsgStyle, "enforce message style (lowercased|capitalized)")
+	fs.BoolVar(&opts.NoRawKeys, "no-raw-keys", opts.NoRawKeys, "enforce using constants instead of raw keys")
+	fs.StringVar(&opts.KeyNamingCase, "key-naming-case", opts.KeyNamingCase, "enforce key naming convention (snake|kebab|camel|pascal)")
+	fs.BoolVar(&opts.ArgsOnSepLines, "args-on-sep-lines", opts.ArgsOnSepLines, "enforce putting arguments on separate lines")
 
-	return *fset
-}
-
-func boolVar(fset *flag.FlagSet, value *bool, name, usage string) {
-	fset.BoolFunc(name, usage, func(s string) error {
-		v, err := strconv.ParseBool(s)
-		*value = v
-		return err
-	})
-}
-
-func stringVar(fset *flag.FlagSet, value *string, name, usage string) {
-	fset.Func(name, usage, func(s string) error {
-		*value = s
+	fs.Func("allowed-keys", "enforce using specific keys only (comma-separated)", func(s string) error {
+		opts.AllowedKeys = append(opts.AllowedKeys, strings.Split(s, ",")...)
 		return nil
 	})
-}
 
-func sliceVar(fset *flag.FlagSet, value *[]string, name, usage string) {
-	fset.Func(name, usage, func(s string) error {
-		*value = append(*value, strings.Split(s, ",")...)
+	fs.Func("forbidden-keys", "enforce not using specific keys (comma-separated)", func(s string) error {
+		opts.ForbiddenKeys = append(opts.ForbiddenKeys, strings.Split(s, ",")...)
 		return nil
 	})
+
+	fs.Func("fn", "analyze a custom function (name:msg-pos:args-pos)", func(s string) error {
+		var fn Func
+		_, err := fmt.Sscanf(s, "%s:%d:%d", &fn.Name, &fn.MsgPos, &fn.ArgsPos)
+		if err != nil {
+			return err
+		}
+		opts.CustomFuncs = append(opts.CustomFuncs, fn)
+		return nil
+	})
+
+	return *fs
 }

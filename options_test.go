@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestOptions(t *testing.T) {
+func TestOptions_validate(t *testing.T) {
 	tests := map[string]struct {
 		opts Options
 		err  error
@@ -19,8 +19,7 @@ func TestOptions(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			analyzer := New(&test.opts)
-			if _, err := analyzer.Run(nil); !errors.Is(err, test.err) {
+			if err := test.opts.validate(); !errors.Is(err, test.err) {
 				t.Errorf("got: %v; want: %v", err, test.err)
 			}
 		})

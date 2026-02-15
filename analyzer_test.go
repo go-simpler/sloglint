@@ -7,11 +7,15 @@ import (
 )
 
 func TestAnalyzer(t *testing.T) {
+	custom := []Func{
+		{Name: "no_mixed_args.customLog", MsgPos: 0, ArgsPos: 1},
+	}
+
 	tests := map[string]struct {
 		dir  string
 		opts Options
 	}{
-		"no mixed arguments":          {dir: "no_mixed_args", opts: Options{NoMixedArgs: true}},
+		"no mixed arguments":          {dir: "no_mixed_args", opts: Options{NoMixedArgs: true, CustomFuncs: custom}},
 		"key-value pairs only":        {dir: "kv_only", opts: Options{KVOnly: true}},
 		"attributes only":             {dir: "attr_only", opts: Options{AttrOnly: true}},
 		"no global (all)":             {dir: "no_global_all", opts: Options{NoGlobal: noGlobalAll}},
@@ -26,7 +30,7 @@ func TestAnalyzer(t *testing.T) {
 		"allowed keys":                {dir: "allowed_keys", opts: Options{AllowedKeys: []string{"foo"}}},
 		"forbidden keys":              {dir: "forbidden_keys", opts: Options{ForbiddenKeys: []string{"bar"}}},
 		"arguments on separate lines": {dir: "args_on_sep_lines", opts: Options{ArgsOnSepLines: true}},
-		"slog.DiscardHandler":         {dir: "discard_handler", opts: Options{}},
+		"discard handler":             {dir: "discard_handler", opts: Options{}},
 	}
 
 	for name, test := range tests {
