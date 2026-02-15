@@ -7,14 +7,9 @@ import (
 
 const foo = "foo"
 
-func Foo(value int) slog.Attr {
-	return slog.Int(foo, value)
-}
-
 func _() {
 	slog.Info("msg", foo, 1)
 	slog.Info("msg", keys.Foo, 1)
-	slog.Info("msg", Foo(1))
 	slog.Info("msg", slog.Int(foo, 1))
 	slog.Info("msg", slog.Attr{})
 	slog.Info("msg", slog.Attr{foo, slog.IntValue(1)})

@@ -1,9 +1,11 @@
-package mixed_args
+package no_mixed_args
 
 import (
 	"context"
 	"log/slog"
 )
+
+func customLog(msg string, args ...any)
 
 func _(ctx context.Context, logger *slog.Logger, args ...any) {
 	slog.Info("msg", args...)
@@ -34,4 +36,6 @@ func _(ctx context.Context, logger *slog.Logger, args ...any) {
 	logger.WarnContext(ctx, "msg", "foo", 1, slog.Int("bar", 2))         // want `key-value pairs and attributes should not be mixed`
 	logger.ErrorContext(ctx, "msg", "foo", 1, slog.Int("bar", 2))        // want `key-value pairs and attributes should not be mixed`
 	logger.With("foo", 1, slog.Int("bar", 2))                            // want `key-value pairs and attributes should not be mixed`
+
+	customLog("msg", "foo", 1, slog.Int("bar", 2)) // want `key-value pairs and attributes should not be mixed`
 }

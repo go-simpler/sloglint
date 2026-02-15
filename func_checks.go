@@ -3,13 +3,15 @@ package sloglint
 import (
 	"fmt"
 	"go/ast"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
-func noGlobal(pass *analysis.Pass, fn *types.Func, call *ast.CallExpr, defaultOnly bool) {
+func noGlobal(pass *analysis.Pass, call *ast.CallExpr, defaultOnly bool) {
+	fn := typeutil.StaticCallee(pass.TypesInfo, call)
+
 	switch fn.Name() {
 	case "Log", "LogAttrs",
 		"Debug", "Info", "Warn", "Error",
@@ -43,7 +45,9 @@ func noGlobal(pass *analysis.Pass, fn *types.Func, call *ast.CallExpr, defaultOn
 	}
 }
 
-func contextOnly(pass *analysis.Pass, fn *types.Func, call *ast.CallExpr, cursor inspector.Cursor, scopeOnly bool) {
+func contextOnly(pass *analysis.Pass, call *ast.CallExpr, cursor inspector.Cursor, scopeOnly bool) {
+	fn := typeutil.StaticCallee(pass.TypesInfo, call)
+
 	switch fn.Name() {
 	case "Debug", "Info", "Warn", "Error":
 	default:

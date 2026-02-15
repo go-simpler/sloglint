@@ -3,8 +3,8 @@ package sloglint
 
 import (
 	"go/ast"
-	"go/types"
 	"go/version"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -39,35 +39,32 @@ func New(opts *Options) *analysis.Analyzer {
 	}
 }
 
-var slogFuncs = map[string]struct {
-	msgPos  int // The position of the "msg string" argument in the function signature, starting from 0.
-	argsPos int // The position of the "args ...any" argument in the function signature, starting from 0.
-}{
-	"log/slog.Log":                    {msgPos: 2, argsPos: 3},
-	"log/slog.LogAttrs":               {msgPos: 2, argsPos: 3},
-	"log/slog.Debug":                  {msgPos: 0, argsPos: 1},
-	"log/slog.Info":                   {msgPos: 0, argsPos: 1},
-	"log/slog.Warn":                   {msgPos: 0, argsPos: 1},
-	"log/slog.Error":                  {msgPos: 0, argsPos: 1},
-	"log/slog.DebugContext":           {msgPos: 1, argsPos: 2},
-	"log/slog.InfoContext":            {msgPos: 1, argsPos: 2},
-	"log/slog.WarnContext":            {msgPos: 1, argsPos: 2},
-	"log/slog.ErrorContext":           {msgPos: 1, argsPos: 2},
-	"log/slog.With":                   {msgPos: -1, argsPos: 0},
-	"log/slog.Group":                  {msgPos: -1, argsPos: 1},
-	"log/slog.NewTextHandler":         {msgPos: -1, argsPos: -1},
-	"log/slog.NewJSONHandler":         {msgPos: -1, argsPos: -1},
-	"(*log/slog.Logger).Log":          {msgPos: 2, argsPos: 3},
-	"(*log/slog.Logger).LogAttrs":     {msgPos: 2, argsPos: 3},
-	"(*log/slog.Logger).Debug":        {msgPos: 0, argsPos: 1},
-	"(*log/slog.Logger).Info":         {msgPos: 0, argsPos: 1},
-	"(*log/slog.Logger).Warn":         {msgPos: 0, argsPos: 1},
-	"(*log/slog.Logger).Error":        {msgPos: 0, argsPos: 1},
-	"(*log/slog.Logger).DebugContext": {msgPos: 1, argsPos: 2},
-	"(*log/slog.Logger).InfoContext":  {msgPos: 1, argsPos: 2},
-	"(*log/slog.Logger).WarnContext":  {msgPos: 1, argsPos: 2},
-	"(*log/slog.Logger).ErrorContext": {msgPos: 1, argsPos: 2},
-	"(*log/slog.Logger).With":         {msgPos: -1, argsPos: 0},
+var standardFuncs = []Func{
+	{Name: "log/slog.Log", MsgPos: 2, ArgsPos: 3, standard: true},
+	{Name: "log/slog.LogAttrs", MsgPos: 2, ArgsPos: 3, standard: true},
+	{Name: "log/slog.Debug", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "log/slog.Info", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "log/slog.Warn", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "log/slog.Error", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "log/slog.DebugContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "log/slog.InfoContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "log/slog.WarnContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "log/slog.ErrorContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "log/slog.With", MsgPos: -1, ArgsPos: 0, standard: true},
+	{Name: "log/slog.Group", MsgPos: -1, ArgsPos: 1, standard: true},
+	{Name: "log/slog.NewTextHandler", MsgPos: -1, ArgsPos: -1, standard: true},
+	{Name: "log/slog.NewJSONHandler", MsgPos: -1, ArgsPos: -1, standard: true},
+	{Name: "(*log/slog.Logger).Log", MsgPos: 2, ArgsPos: 3, standard: true},
+	{Name: "(*log/slog.Logger).LogAttrs", MsgPos: 2, ArgsPos: 3, standard: true},
+	{Name: "(*log/slog.Logger).Debug", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "(*log/slog.Logger).Info", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "(*log/slog.Logger).Warn", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "(*log/slog.Logger).Error", MsgPos: 0, ArgsPos: 1, standard: true},
+	{Name: "(*log/slog.Logger).DebugContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "(*log/slog.Logger).InfoContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "(*log/slog.Logger).WarnContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "(*log/slog.Logger).ErrorContext", MsgPos: 1, ArgsPos: 2, standard: true},
+	{Name: "(*log/slog.Logger).With", MsgPos: -1, ArgsPos: 0, standard: true},
 }
 
 func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
@@ -104,28 +101,31 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		// Special case: don't return here, we also need to analyze the group's arguments.
 	}
 
-	info, ok := slogFuncs[fn.FullName()]
-	if !ok {
+	funcs := slices.Concat(standardFuncs, opts.CustomFuncs)
+	idx := slices.IndexFunc(funcs, func(f Func) bool {
+		return f.Name == fn.FullName()
+	})
+	if idx == -1 {
 		return
 	}
 
-	analyzeFunc(pass, opts, fn, call, cursor)
-
-	if info.msgPos >= 0 && len(call.Args) > info.msgPos {
-		analyzeMsg(pass, opts, call.Args[info.msgPos])
+	if funcs[idx].standard {
+		analyzeFunc(pass, opts, call, cursor)
 	}
-
-	if info.argsPos >= 0 && len(call.Args) > info.argsPos {
-		analyzeArgs(pass, opts, call.Args[info.argsPos:])
+	if pos := funcs[idx].MsgPos; pos >= 0 && len(call.Args) > pos {
+		analyzeMsg(pass, opts, call.Args[pos])
+	}
+	if pos := funcs[idx].ArgsPos; pos >= 0 && len(call.Args) > pos {
+		analyzeArgs(pass, opts, call.Args[pos:])
 	}
 }
 
-func analyzeFunc(pass *analysis.Pass, opts *Options, fn *types.Func, call *ast.CallExpr, cursor inspector.Cursor) {
+func analyzeFunc(pass *analysis.Pass, opts *Options, call *ast.CallExpr, cursor inspector.Cursor) {
 	if opts.NoGlobal != "" {
-		noGlobal(pass, fn, call, opts.NoGlobal == noGlobalDefault)
+		noGlobal(pass, call, opts.NoGlobal == noGlobalDefault)
 	}
 	if opts.ContextOnly != "" {
-		contextOnly(pass, fn, call, cursor, opts.ContextOnly == contextOnlyScope)
+		contextOnly(pass, call, cursor, opts.ContextOnly == contextOnlyScope)
 	}
 	v := pass.Module.GoVersion // Empty in test runs.
 	if v == "" || version.Compare("go"+v, "go1.24") >= 0 {

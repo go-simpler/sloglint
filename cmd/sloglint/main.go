@@ -23,7 +23,7 @@ type versionFlag struct{}
 func (versionFlag) String() string   { return "" }
 func (versionFlag) IsBoolFlag() bool { return true }
 func (versionFlag) Set(string) error {
-	fmt.Printf("sloglint version %s %s/%s (built with %s)\n", version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+	fmt.Printf("sloglint %s %s/%s (built with %s)\n", version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 	os.Exit(0)
 	return nil
 }
