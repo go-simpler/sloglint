@@ -127,13 +127,11 @@ func flags(opts *Options) flag.FlagSet {
 	})
 
 	fs.Func("fn", "analyze a custom function (name:msg-pos:args-pos)", func(s string) error {
-		var fn Func
-		_, err := fmt.Sscanf(s, "%s:%d:%d", &fn.Name, &fn.MsgPos, &fn.ArgsPos)
-		if err != nil {
-			return err
-		}
+		name, rest, _ := strings.Cut(s, ":")
+		fn := Func{Name: name}
+		_, err := fmt.Sscanf(rest, "%d:%d", &fn.MsgPos, &fn.ArgsPos)
 		opts.CustomFuncs = append(opts.CustomFuncs, fn)
-		return nil
+		return err
 	})
 
 	return *fs
