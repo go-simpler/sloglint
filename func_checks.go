@@ -55,27 +55,14 @@ func contextOnly(pass *analysis.Pass, fn *types.Func, call *ast.CallExpr, cursor
 		return
 	}
 
-	diag := analysis.Diagnostic{
-		Pos:     sel.Sel.Pos(),
-		End:     sel.Sel.End(),
-		Message: fmt.Sprintf("%sContext should be used instead", fn.Name()),
-		SuggestedFixes: []analysis.SuggestedFix{{
-			TextEdits: []analysis.TextEdit{{
-				Pos:     sel.Sel.Pos(),
-				End:     sel.Sel.End(),
-				NewText: fmt.Appendf(nil, "%sContext", fn.Name()),
-			}},
-		}},
-	}
-
 	if !scopeOnly {
-		pass.Report(diag)
+		// Don't suggest fixes here, we don't know whether there is a context in the scope.
+		pass.ReportRangef(sel.Sel, "%sContext should be used instead", fn.Name())
 		return
 	}
 
 	for cursor := range cursor.Enclosing(new(ast.FuncDecl), new(ast.FuncLit)) {
 		var params []*ast.Field
-
 		switch fn := cursor.Node().(type) {
 		case *ast.FuncDecl:
 			params = fn.Type.Params.List
@@ -83,13 +70,37 @@ func contextOnly(pass *analysis.Pass, fn *types.Func, call *ast.CallExpr, cursor
 			params = fn.Type.Params.List
 		}
 
-		if len(params) == 0 || len(params[0].Names) == 0 {
+		if len(params) == 0 {
 			continue
 		}
 
-		name := typeName(pass.TypesInfo, params[0].Names[0])
-		if name == "context.Context" || name == "*net/http.Request" {
-			pass.Report(diag)
+		for _, param := range params {
+			if len(param.Names) == 0 {
+				continue
+			}
+
+			var ctxArg string
+			switch name := param.Names[0]; typeName(pass.TypesInfo, name) {
+			case "context.Context":
+				ctxArg = name.Name
+			case "*net/http.Request":
+				ctxArg = name.Name + ".Context()"
+			default:
+				continue
+			}
+
+			pass.Report(analysis.Diagnostic{
+				Pos:     sel.Sel.Pos(),
+				End:     sel.Sel.End(),
+				Message: fmt.Sprintf("%sContext should be used instead", fn.Name()),
+				SuggestedFixes: []analysis.SuggestedFix{{
+					TextEdits: []analysis.TextEdit{{
+						Pos:     sel.Sel.Pos(),
+						End:     call.Lparen + 1,
+						NewText: fmt.Appendf(nil, "%sContext(%s, ", fn.Name(), ctxArg),
+					}},
+				}},
+			})
 			return
 		}
 	}

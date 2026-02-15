@@ -16,7 +16,7 @@ func _(ctx context.Context) {
 	}
 }
 
-func _(r *http.Request) {
+func _(w http.ResponseWriter, r *http.Request) {
 	slog.Info("msg") // want `InfoContext should be used instead`
 	slog.InfoContext(r.Context(), "msg")
 

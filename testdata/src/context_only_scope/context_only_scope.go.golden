@@ -7,21 +7,21 @@ import (
 )
 
 func _(ctx context.Context) {
-	slog.InfoContext("msg") // want `InfoContext should be used instead`
+	slog.InfoContext(ctx, "msg") // want `InfoContext should be used instead`
 	slog.InfoContext(ctx, "msg")
 
 	_ = func() {
-		slog.InfoContext("msg") // want `InfoContext should be used instead`
+		slog.InfoContext(ctx, "msg") // want `InfoContext should be used instead`
 		slog.InfoContext(ctx, "msg")
 	}
 }
 
-func _(r *http.Request) {
-	slog.InfoContext("msg") // want `InfoContext should be used instead`
+func _(w http.ResponseWriter, r *http.Request) {
+	slog.InfoContext(r.Context(), "msg") // want `InfoContext should be used instead`
 	slog.InfoContext(r.Context(), "msg")
 
 	_ = func() {
-		slog.InfoContext("msg") // want `InfoContext should be used instead`
+		slog.InfoContext(r.Context(), "msg") // want `InfoContext should be used instead`
 		slog.InfoContext(r.Context(), "msg")
 	}
 }
@@ -31,7 +31,7 @@ func _() {
 	slog.InfoContext(context.Background(), "msg")
 
 	_ = func(ctx context.Context) {
-		slog.InfoContext("msg") // want `InfoContext should be used instead`
+		slog.InfoContext(ctx, "msg") // want `InfoContext should be used instead`
 		slog.InfoContext(ctx, "msg")
 	}
 }
