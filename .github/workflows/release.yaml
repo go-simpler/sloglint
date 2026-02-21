@@ -8,11 +8,11 @@ on:
       version:
         type: string
         required: true
-        description: The next semantic version to release
+        description: The semantic version to release.
 
 jobs:
   release:
-    uses: go-simpler/.github/.github/workflows/release.yml@main
+    uses: go-simpler/.github/.github/workflows/release.yaml@update-workflows
     with:
       version: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
-      use-goreleaser: true
+      goreleaser: true
