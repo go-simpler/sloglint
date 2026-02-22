@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   release:
-    uses: go-simpler/.github/.github/workflows/release.yaml@update-workflows
+    uses: go-simpler/.github/.github/workflows/release.yaml@main
     with:
       version: ${{ github.ref_name }}
       goreleaser: true
