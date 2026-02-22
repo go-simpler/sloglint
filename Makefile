@@ -3,10 +3,14 @@
 
 help:
 	@echo 'Available commands:'
-	@echo '  fmt         Format *.go files'
+	@echo '  build       Build the project'
+	@echo '  fmt         Run formatters'
 	@echo '  lint        Run linters'
 	@echo '  test        Run tests'
 	@echo '  test/cover  Run tests and open coverage report'
+
+build:
+	@go build -o /dev/null ./...
 
 fmt:
 	@golangci-lint fmt
