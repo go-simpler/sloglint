@@ -1,0 +1,18 @@
+name: checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: go-simpler/.github/.github/workflows/test.yaml@main
+  lint:
+    uses: go-simpler/.github/.github/workflows/lint.yaml@main
+  vuln:
+    uses: go-simpler/.github/.github/workflows/vuln.yaml@main

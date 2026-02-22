@@ -1,8 +1,7 @@
 # sloglint
 
-[![checks](https://github.com/go-simpler/sloglint/actions/workflows/checks.yml/badge.svg)](https://github.com/go-simpler/sloglint/actions/workflows/checks.yml)
-[![pkg.go.dev](https://pkg.go.dev/badge/go-simpler.org/sloglint.svg)](https://pkg.go.dev/go-simpler.org/sloglint)
-[![goreportcard](https://goreportcard.com/badge/go-simpler.org/sloglint)](https://goreportcard.com/report/go-simpler.org/sloglint)
+[![checks](https://github.com/go-simpler/sloglint/actions/workflows/checks.yaml/badge.svg)](https://github.com/go-simpler/sloglint/actions/workflows/checks.yaml)
+[![docs](https://pkg.go.dev/badge/go-simpler.org/sloglint.svg)](https://pkg.go.dev/go-simpler.org/sloglint)
 [![codecov](https://codecov.io/gh/go-simpler/sloglint/branch/main/graph/badge.svg)](https://codecov.io/gh/go-simpler/sloglint)
 
 A Go linter that ensures consistent code style when using `log/slog`.
