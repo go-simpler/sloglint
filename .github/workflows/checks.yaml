@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     uses: go-simpler/.github/.github/workflows/test.yaml@update-workflows
