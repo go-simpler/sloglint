@@ -6,9 +6,9 @@
 
 A Go linter that ensures consistent code style when using `log/slog`.
 
-## Usage
+## Install
 
-Via [golangci-lint][1]:
+`sloglint` is integrated into [golangci-lint](https://golangci-lint.run), and this is the recommended way to use it.
 
 ```yaml
 # .golangci.yaml
@@ -17,10 +17,7 @@ linters:
     - sloglint
 ```
 
-Standalone:
-
-Download a prebuilt binary from the [Releases][2] page.
-Run `sloglint -help` to see the list of available options.
+Alternatively, you can download a prebuilt binary from the [Releases][https://github.com/go-simpler/sloglint/releases] page to use `sloglint` standalone.
 
 ## Supported checks
 
@@ -45,7 +42,7 @@ For log keys:
 - [Allowed keys](#allowed-keys)
 - [Forbidden keys](#forbidden-keys)
 
-The checks for messages, arguments, and keys can also be used to analyze [custom functions](#custom-functions-analysis).
+The checks for log messages, arguments, and keys can also be used to analyze [custom functions](#custom-functions-analysis).
 
 ### No global logger
 
@@ -226,7 +223,7 @@ slog.Info("a user has logged in", "user-id", 42)
 linters:
   settings:
     sloglint:
-      key-naming-case: true
+      key-naming-case: "snake" # Or "kebab", "camel", "pascal".
 ```
 
 This check supports autofix.
@@ -276,7 +273,25 @@ linters:
 
 ## Custom functions analysis
 
-WIP
+Analyze custom functions in addition to the standard `log/slog` functions.
 
-[1]: https://golangci-lint.run
-[2]: https://github.com/go-simpler/sloglint/releases
+The following properties must be specified:
+1. The full name of the function, including the package, e.g. `log/slog.Info`.
+If the function is a method, the receiver type must be wrapped in parentheses, e.g. `(*log/slog.Logger).Info`.
+2. The position of the `msg string` argument in the function signature, starting from 0.
+If there is no message in the function, a negative value must be passed.
+3. The position of the `args ...any` argument in the function signature, starting from 0.
+If there are no arguments in the function, a negative value must be passed.
+
+Here's an example for the [exp/slog](https://pkg.go.dev/golang.org/x/exp/slog) package, the predecessor of `log/slog`.
+
+```yaml
+# .golangci.yaml
+linters:
+  settings:
+    sloglint:
+      custom-funcs:
+        - name: "(*golang.org/x/exp/slog.Logger).InfoContext"
+          msg-pos: 1
+          args-pos: 2
+```
