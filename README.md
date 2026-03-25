@@ -50,8 +50,8 @@ Report the use of global loggers.
 Alternatively, only report the use of the `slog.Default()` logger.
 
 ```go
+slog.Info("a user has logged in")
 // sloglint: global logger should not be used
-slog.Info("a user has logged in", "user_id", 42)
 ```
 
 ```yaml
@@ -68,8 +68,8 @@ Report the use of functions without a `context.Context`.
 Alternatively, only report their use if a context exists within the scope of the outermost function.
 
 ```go
-// sloglint: InfoContext should be used instead
 slog.Info("a user has logged in")
+// sloglint: InfoContext should be used instead
 ```
 
 ```yaml
@@ -87,8 +87,8 @@ This check partially supports autofix.
 Suggest using `slog.DiscardHandler` when possible.
 
 ```go
-// sloglint: use slog.DiscardHandler instead
 slog.NewJSONHandler(io.Discard, nil)
+// sloglint: use slog.DiscardHandler instead
 ```
 
 This check is enabled by default and supports autofix.
@@ -98,8 +98,8 @@ This check is enabled by default and supports autofix.
 Report dynamic log messages, such as those that are built with `fmt.Sprintf`.
 
 ```go
-// sloglint: message should be a string literal or a constant
 slog.Info(fmt.Sprintf("a user with id %d has logged in", 42))
+// sloglint: message should be a string literal or a constant
 ```
 
 ```yaml
@@ -116,8 +116,8 @@ Report log messages that do not match a particular style.
 The supported styles are `lowercased` (the first letter is lowercase) and `capitalized` (the first letter is uppercase).
 
 ```go
-// sloglint: message should be lowercased
 slog.Info("A user has logged in")
+// sloglint: message should be lowercased
 ```
 
 ```yaml
@@ -133,8 +133,8 @@ linters:
 Report the use of both key-value pairs and attributes within a single function call.
 
 ```go
-// sloglint: key-value pairs and attributes should not be mixed
 slog.Info("a user has logged in", "user_id", 42, slog.String("ip_address", "192.0.2.0"))
+// sloglint: key-value pairs and attributes should not be mixed
 ```
 
 This check is enabled by default.
@@ -144,8 +144,8 @@ This check is enabled by default.
 Report any use of attributes as function call arguments.
 
 ```go
-// sloglint: attributes should not be used
 slog.Info("a user has logged in", slog.Int("user_id", 42))
+// sloglint: attributes should not be used
 ```
 
 ```yaml
@@ -161,8 +161,8 @@ linters:
 Report any use of key-value pairs as function call arguments.
 
 ```go
-// sloglint: key-value pairs should not be used
 slog.Info("a user has logged in", "user_id", 42)
+// sloglint: key-value pairs should not be used
 ```
 
 ```yaml
@@ -179,8 +179,8 @@ Report two or more arguments on the same line.
 A key-value pair is considered a single argument.
 
 ```go
-// sloglint: arguments should be put on separate lines
 slog.Info("a user has logged in", "user_id", 42, "ip_address", "192.0.2.0")
+// sloglint: arguments should be put on separate lines
 ```
 
 ```yaml
@@ -196,8 +196,8 @@ linters:
 Report the use of literal strings as log keys.
 
 ```go
-// sloglint: literal keys should not be used
 slog.Info("a user has logged in", "user_id", 42)
+// sloglint: literal keys should not be used
 ```
 
 ```yaml
@@ -214,8 +214,8 @@ Report log keys that do not match a particular naming case.
 The supported cases are `snake_case`, `kebab-case`, `camelCase`, and `PascalCase`.
 
 ```go
-// sloglint: keys should be written in snake_case
 slog.Info("a user has logged in", "user-id", 42)
+// sloglint: keys should be written in snake_case
 ```
 
 ```yaml
@@ -233,8 +233,8 @@ This check supports autofix.
 Report the use of log keys that are not explicitly allowed.
 
 ```go
-// sloglint: the "id" key is not allowed and should not be used
 slog.Info("a user has logged in", "id", 42)
+// sloglint: the "id" key is not allowed and should not be used
 ```
 
 ```yaml
@@ -255,8 +255,8 @@ you may want to forbid the `time`, `level`, `msg`, and `source` keys,
 as these will be written by the handler.
 
 ```go
-// sloglint: the "time" key is forbidden and should not be used
 slog.Info("a user has logged in", "time", time.Now())
+// sloglint: the "time" key is forbidden and should not be used
 ```
 
 ```yaml
@@ -275,7 +275,7 @@ linters:
 
 Analyze custom functions in addition to the standard `log/slog` functions.
 
-The following properties must be specified:
+The following function properties must be specified:
 1. The full name of the function, including the package, e.g. `log/slog.Info`.
 If the function is a method, the receiver type must be wrapped in parentheses, e.g. `(*log/slog.Logger).Info`.
 2. The position of the `msg string` argument in the function signature, starting from 0.
