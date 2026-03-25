@@ -17,7 +17,7 @@ linters:
     - sloglint
 ```
 
-Alternatively, you can download a prebuilt binary from the [Releases][https://github.com/go-simpler/sloglint/releases] page to use `sloglint` standalone.
+Alternatively, you can download a prebuilt binary from the [Releases](https://github.com/go-simpler/sloglint/releases) page to use `sloglint` standalone.
 
 ## Supported checks
 
