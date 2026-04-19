@@ -8,7 +8,7 @@ A Go linter that ensures consistent code style when using `log/slog`.
 
 ## Install
 
-`sloglint` is integrated into [golangci-lint](https://golangci-lint.run), and this is the recommended way to use it.
+`sloglint` is part of [golangci-lint](https://golangci-lint.run), and this is the recommended way to use it.
 
 ```yaml
 # .golangci.yaml
@@ -37,10 +37,10 @@ For log arguments:
 - [Arguments on separate lines](#arguments-on-separate-lines)
 
 For log keys:
-- [No literal keys](#no-literal-keys)
-- [Key naming case](#key-naming-case)
+- [Constant keys](#constant-keys)
 - [Allowed keys](#allowed-keys)
 - [Forbidden keys](#forbidden-keys)
+- [Key naming case](#key-naming-case)
 
 The checks for log messages, arguments, and keys can also be used to analyze [custom functions](#custom-functions-analysis).
 
@@ -191,13 +191,13 @@ linters:
       args-on-sep-lines: true
 ```
 
-### No literal keys
+### Constant keys
 
-Report the use of literal strings as log keys.
+Report the use of string literals as log keys.
 
 ```go
 slog.Info("a user has logged in", "user_id", 42)
-// sloglint: literal keys should not be used
+// sloglint: the "user_id" key should be a constant
 ```
 
 ```yaml
@@ -207,26 +207,6 @@ linters:
     sloglint:
       no-raw-keys: true
 ```
-
-### Key naming case
-
-Report log keys that do not match a particular naming case.
-The supported cases are `snake_case`, `kebab-case`, `camelCase`, and `PascalCase`.
-
-```go
-slog.Info("a user has logged in", "user-id", 42)
-// sloglint: keys should be written in snake_case
-```
-
-```yaml
-# .golangci.yaml
-linters:
-  settings:
-    sloglint:
-      key-naming-case: "snake" # Or "kebab", "camel", "pascal".
-```
-
-This check supports autofix.
 
 ### Allowed keys
 
@@ -270,6 +250,26 @@ linters:
         - msg
         - source
 ```
+
+### Key naming case
+
+Report log keys that do not match a particular naming case.
+The supported cases are `snake_case`, `kebab-case`, `camelCase`, and `PascalCase`.
+
+```go
+slog.Info("a user has logged in", "user-id", 42)
+// sloglint: keys should be written in snake_case
+```
+
+```yaml
+# .golangci.yaml
+linters:
+  settings:
+    sloglint:
+      key-naming-case: "snake" # Or "kebab", "camel", "pascal".
+```
+
+This check supports autofix.
 
 ## Custom functions analysis
 
