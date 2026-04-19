@@ -8,6 +8,7 @@ func _() {
 	slog.Info("Msg") // want `message should be lowercased`
 
 	// Special cases:
+	slog.Info("200 OK")
 	slog.Info("U.S.")
 	slog.Info("HTTP")
 }

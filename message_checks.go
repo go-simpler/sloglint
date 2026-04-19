@@ -53,6 +53,10 @@ func messageStyle(pass *analysis.Pass, msg ast.Expr, style string) {
 
 	first, second := runes[0], runes[1]
 
+	if !unicode.IsLetter(first) {
+		return // e.g. "200 OK"
+	}
+
 	switch style {
 	case messageStyleLowercased:
 		if unicode.IsLower(first) {

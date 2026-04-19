@@ -8,5 +8,6 @@ func _() {
 	slog.Info("Msg")
 
 	// Special cases:
+	slog.Info("200 OK")
 	slog.Info("iPhone")
 }
