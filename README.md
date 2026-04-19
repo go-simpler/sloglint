@@ -224,7 +224,6 @@ linters:
     sloglint:
       allowed-keys:
         - user_id
-        - ip_address
 ```
 
 ### Forbidden keys

@@ -110,7 +110,7 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 	}
 
 	if idx < len(slogFuncs) {
-		analyzeFunc(pass, opts, call, cursor)
+		analyzeFunction(pass, opts, call, cursor)
 	}
 	if pos := funcs[idx].MessagePos; pos >= 0 && len(call.Args) > pos {
 		analyzeMessage(pass, opts, call.Args[pos])
@@ -120,7 +120,7 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 	}
 }
 
-func analyzeFunc(pass *analysis.Pass, opts *Options, call *ast.CallExpr, cursor inspector.Cursor) {
+func analyzeFunction(pass *analysis.Pass, opts *Options, call *ast.CallExpr, cursor inspector.Cursor) {
 	if opts.NoGlobalLogger != "" {
 		noGlobalLogger(pass, call, opts.NoGlobalLogger == noGlobalLoggerDefault)
 	}
