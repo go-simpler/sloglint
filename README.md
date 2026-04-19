@@ -42,7 +42,7 @@ For log keys:
 - [Forbidden keys](#forbidden-keys)
 - [Key naming case](#key-naming-case)
 
-The checks for log messages, arguments, and keys can also be used to analyze [custom functions](#custom-functions-analysis).
+The checks for log messages, arguments, and keys can also be used to analyze [custom functions](#custom-function-analysis).
 
 ### No global logger
 
@@ -270,7 +270,7 @@ linters:
 
 This check supports autofix.
 
-## Custom functions analysis
+## Custom function analysis
 
 Analyze custom functions in addition to the standard `log/slog` functions.
 
