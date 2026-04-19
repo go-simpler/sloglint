@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-func staticMsg(pass *analysis.Pass, msg ast.Expr) {
+func staticMessage(pass *analysis.Pass, msg ast.Expr) {
 	var isStatic func(msg ast.Expr) bool
 	isStatic = func(msg ast.Expr) bool {
 		switch msg := msg.(type) {
@@ -35,7 +35,7 @@ func staticMsg(pass *analysis.Pass, msg ast.Expr) {
 	}
 }
 
-func msgStyle(pass *analysis.Pass, msg ast.Expr, style string) {
+func messageStyle(pass *analysis.Pass, msg ast.Expr, style string) {
 	lit, ok := msg.(*ast.BasicLit)
 	if !ok || lit.Kind != token.STRING {
 		return
@@ -54,7 +54,7 @@ func msgStyle(pass *analysis.Pass, msg ast.Expr, style string) {
 	first, second := runes[0], runes[1]
 
 	switch style {
-	case msgStyleLowercased:
+	case messageStyleLowercased:
 		if unicode.IsLower(first) {
 			return
 		}
@@ -64,7 +64,7 @@ func msgStyle(pass *analysis.Pass, msg ast.Expr, style string) {
 		if unicode.IsUpper(second) {
 			return // e.g. "HTTP"
 		}
-	case msgStyleCapitalized:
+	case messageStyleCapitalized:
 		if unicode.IsUpper(first) {
 			return
 		}

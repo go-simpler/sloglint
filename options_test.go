@@ -10,11 +10,11 @@ func TestOptions_validate(t *testing.T) {
 		opts Options
 		err  error
 	}{
-		"KVOnly+AttrOnly":       {Options{KVOnly: true, AttrOnly: true}, errIncompatible},
-		"invalid NoGlobal":      {Options{NoGlobal: "-"}, errInvalidValue},
-		"invalid ContextOnly":   {Options{ContextOnly: "-"}, errInvalidValue},
-		"invalid MsgStyle":      {Options{MsgStyle: "-"}, errInvalidValue},
-		"invalid KeyNamingCase": {Options{KeyNamingCase: "-"}, errInvalidValue},
+		"invalid NoGlobalLogger":           {Options{NoGlobalLogger: "-"}, errInvalidValue},
+		"invalid ContextOnly":              {Options{ContextOnly: "-"}, errInvalidValue},
+		"invalid MessageStyle":             {Options{MessageStyle: "-"}, errInvalidValue},
+		"invalid KeyNamingCase":            {Options{KeyNamingCase: "-"}, errInvalidValue},
+		"KeyValuePairsOnly+AttributesOnly": {Options{KeyValuePairsOnly: true, AttributesOnly: true}, errIncompatible},
 	}
 
 	for name, test := range tests {

@@ -15,7 +15,7 @@ import (
 // New creates a new sloglint analyzer.
 func New(opts *Options) *analysis.Analyzer {
 	if opts == nil {
-		opts = &Options{NoMixedArgs: true}
+		opts = &Options{NoMixedArguments: true}
 	}
 
 	return &analysis.Analyzer{
@@ -39,32 +39,32 @@ func New(opts *Options) *analysis.Analyzer {
 	}
 }
 
-var standardFuncs = []Func{
-	{Name: "log/slog.Log", MsgPos: 2, ArgsPos: 3, standard: true},
-	{Name: "log/slog.LogAttrs", MsgPos: 2, ArgsPos: 3, standard: true},
-	{Name: "log/slog.Debug", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "log/slog.Info", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "log/slog.Warn", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "log/slog.Error", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "log/slog.DebugContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "log/slog.InfoContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "log/slog.WarnContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "log/slog.ErrorContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "log/slog.With", MsgPos: -1, ArgsPos: 0, standard: true},
-	{Name: "log/slog.Group", MsgPos: -1, ArgsPos: 1, standard: true},
-	{Name: "log/slog.NewTextHandler", MsgPos: -1, ArgsPos: -1, standard: true},
-	{Name: "log/slog.NewJSONHandler", MsgPos: -1, ArgsPos: -1, standard: true},
-	{Name: "(*log/slog.Logger).Log", MsgPos: 2, ArgsPos: 3, standard: true},
-	{Name: "(*log/slog.Logger).LogAttrs", MsgPos: 2, ArgsPos: 3, standard: true},
-	{Name: "(*log/slog.Logger).Debug", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "(*log/slog.Logger).Info", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "(*log/slog.Logger).Warn", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "(*log/slog.Logger).Error", MsgPos: 0, ArgsPos: 1, standard: true},
-	{Name: "(*log/slog.Logger).DebugContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "(*log/slog.Logger).InfoContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "(*log/slog.Logger).WarnContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "(*log/slog.Logger).ErrorContext", MsgPos: 1, ArgsPos: 2, standard: true},
-	{Name: "(*log/slog.Logger).With", MsgPos: -1, ArgsPos: 0, standard: true},
+var slogFuncs = []Func{
+	{"log/slog.Log", 2, 3},
+	{"log/slog.LogAttrs", 2, 3},
+	{"log/slog.Debug", 0, 1},
+	{"log/slog.Info", 0, 1},
+	{"log/slog.Warn", 0, 1},
+	{"log/slog.Error", 0, 1},
+	{"log/slog.DebugContext", 1, 2},
+	{"log/slog.InfoContext", 1, 2},
+	{"log/slog.WarnContext", 1, 2},
+	{"log/slog.ErrorContext", 1, 2},
+	{"log/slog.With", -1, 0},
+	{"log/slog.Group", -1, 1},
+	{"log/slog.NewTextHandler", -1, -1},
+	{"log/slog.NewJSONHandler", -1, -1},
+	{"(*log/slog.Logger).Log", 2, 3},
+	{"(*log/slog.Logger).LogAttrs", 2, 3},
+	{"(*log/slog.Logger).Debug", 0, 1},
+	{"(*log/slog.Logger).Info", 0, 1},
+	{"(*log/slog.Logger).Warn", 0, 1},
+	{"(*log/slog.Logger).Error", 0, 1},
+	{"(*log/slog.Logger).DebugContext", 1, 2},
+	{"(*log/slog.Logger).InfoContext", 1, 2},
+	{"(*log/slog.Logger).WarnContext", 1, 2},
+	{"(*log/slog.Logger).ErrorContext", 1, 2},
+	{"(*log/slog.Logger).With", -1, 0},
 }
 
 func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
@@ -101,28 +101,28 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		// Special case: don't return here, we also need to analyze the group's arguments.
 	}
 
-	funcs := slices.Concat(standardFuncs, opts.CustomFuncs)
+	funcs := slices.Concat(slogFuncs, opts.CustomFuncs)
 	idx := slices.IndexFunc(funcs, func(f Func) bool {
-		return f.Name == fn.FullName()
+		return f.FullName == fn.FullName()
 	})
 	if idx == -1 {
 		return
 	}
 
-	if funcs[idx].standard {
+	if idx < len(slogFuncs) {
 		analyzeFunc(pass, opts, call, cursor)
 	}
-	if pos := funcs[idx].MsgPos; pos >= 0 && len(call.Args) > pos {
-		analyzeMsg(pass, opts, call.Args[pos])
+	if pos := funcs[idx].MessagePos; pos >= 0 && len(call.Args) > pos {
+		analyzeMessage(pass, opts, call.Args[pos])
 	}
-	if pos := funcs[idx].ArgsPos; pos >= 0 && len(call.Args) > pos {
-		analyzeArgs(pass, opts, call.Args[pos:])
+	if pos := funcs[idx].ArgumentsPos; pos >= 0 && len(call.Args) > pos {
+		analyzeArguments(pass, opts, call.Args[pos:])
 	}
 }
 
 func analyzeFunc(pass *analysis.Pass, opts *Options, call *ast.CallExpr, cursor inspector.Cursor) {
-	if opts.NoGlobal != "" {
-		noGlobal(pass, call, opts.NoGlobal == noGlobalDefault)
+	if opts.NoGlobalLogger != "" {
+		noGlobalLogger(pass, call, opts.NoGlobalLogger == noGlobalLoggerDefault)
 	}
 	if opts.ContextOnly != "" {
 		contextOnly(pass, call, cursor, opts.ContextOnly == contextOnlyScope)
@@ -133,16 +133,16 @@ func analyzeFunc(pass *analysis.Pass, opts *Options, call *ast.CallExpr, cursor 
 	}
 }
 
-func analyzeMsg(pass *analysis.Pass, opts *Options, msg ast.Expr) {
-	if opts.StaticMsg {
-		staticMsg(pass, msg)
+func analyzeMessage(pass *analysis.Pass, opts *Options, msg ast.Expr) {
+	if opts.StaticMessage {
+		staticMessage(pass, msg)
 	}
-	if opts.MsgStyle != "" {
-		msgStyle(pass, msg, opts.MsgStyle)
+	if opts.MessageStyle != "" {
+		messageStyle(pass, msg, opts.MessageStyle)
 	}
 }
 
-func analyzeArgs(pass *analysis.Pass, opts *Options, args []ast.Expr) {
+func analyzeArguments(pass *analysis.Pass, opts *Options, args []ast.Expr) {
 	var keys, attrs []ast.Expr
 
 	for i := 0; i < len(args); i++ {
@@ -162,23 +162,23 @@ func analyzeArgs(pass *analysis.Pass, opts *Options, args []ast.Expr) {
 		}
 	}
 
-	if opts.NoMixedArgs {
-		noMixedArgs(pass, keys, attrs)
+	if opts.NoMixedArguments {
+		noMixedArguments(pass, keys, attrs)
 	}
-	if opts.KVOnly {
-		kvOnly(pass, attrs)
+	if opts.KeyValuePairsOnly {
+		keyValuePairsOnly(pass, attrs)
 	}
-	if opts.AttrOnly {
-		attrOnly(pass, keys)
+	if opts.AttributesOnly {
+		attributesOnly(pass, keys)
 	}
-	if opts.ArgsOnSepLines {
-		argsOnSepLines(pass, keys, attrs)
+	if opts.ArgumentsOnSeparateLines {
+		argumentsOnSeparateLines(pass, keys, attrs)
 	}
 }
 
 func analyzeKey(pass *analysis.Pass, opts *Options, key ast.Expr) {
-	if opts.NoRawKeys {
-		noRawKeys(pass, key)
+	if opts.ConstantKeys {
+		constantKeys(pass, key)
 	}
 	if opts.KeyNamingCase != "" {
 		keyNamingCase(pass, key, opts.KeyNamingCase)
