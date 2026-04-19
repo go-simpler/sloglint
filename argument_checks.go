@@ -7,7 +7,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-func noMixedArgs(pass *analysis.Pass, keys, attrs []ast.Expr) {
+func noMixedArguments(pass *analysis.Pass, keys, attrs []ast.Expr) {
 	if len(keys) == 0 {
 		return
 	}
@@ -20,7 +20,7 @@ func noMixedArgs(pass *analysis.Pass, keys, attrs []ast.Expr) {
 	}
 }
 
-func kvOnly(pass *analysis.Pass, attrs []ast.Expr) {
+func keyValuePairsOnly(pass *analysis.Pass, attrs []ast.Expr) {
 	for _, attr := range attrs {
 		if call, ok := attr.(*ast.CallExpr); ok && funcName(pass.TypesInfo, call) == "log/slog.Group" {
 			continue // Special case: slog.Group() should always be allowed.
@@ -30,14 +30,14 @@ func kvOnly(pass *analysis.Pass, attrs []ast.Expr) {
 	}
 }
 
-func attrOnly(pass *analysis.Pass, keys []ast.Expr) {
+func attributesOnly(pass *analysis.Pass, keys []ast.Expr) {
 	for _, key := range keys {
 		pass.ReportRangef(key, "key-value pairs should not be used")
 		return
 	}
 }
 
-func argsOnSepLines(pass *analysis.Pass, keys, attrs []ast.Expr) {
+func argumentsOnSeparateLines(pass *analysis.Pass, keys, attrs []ast.Expr) {
 	args := slices.Concat(keys, attrs)
 	if len(args) <= 1 {
 		return // Special case: slog.Info("msg", "key", "value") is fine.

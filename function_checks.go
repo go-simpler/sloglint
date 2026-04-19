@@ -9,7 +9,7 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
-func noGlobal(pass *analysis.Pass, call *ast.CallExpr, defaultOnly bool) {
+func noGlobalLogger(pass *analysis.Pass, call *ast.CallExpr, defaultOnly bool) {
 	fn := typeutil.StaticCallee(pass.TypesInfo, call)
 
 	switch fn.Name() {
