@@ -52,6 +52,7 @@ var slogFuncs = []Func{
 	{"log/slog.ErrorContext", 1, 2},
 	{"log/slog.With", -1, 0},
 	{"log/slog.Group", -1, 1},
+	{"log/slog.GroupAttrs", -1, 1},
 	{"log/slog.NewTextHandler", -1, -1},
 	{"log/slog.NewJSONHandler", -1, -1},
 	{"(*log/slog.Logger).Log", 2, 3},
@@ -96,7 +97,7 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		"log/slog.Any":
 		analyzeKey(pass, opts, call.Args[0])
 		return
-	case "log/slog.Group":
+	case "log/slog.Group", "log/slog.GroupAttrs":
 		analyzeKey(pass, opts, call.Args[0])
 		// Special case: don't return here, we also need to analyze the group's arguments.
 	}
