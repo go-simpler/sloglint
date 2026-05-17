@@ -45,3 +45,12 @@ func keyName(key ast.Expr) (string, bool) {
 
 	return name, true
 }
+
+func isGroup(info *types.Info, expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	name := funcName(info, call)
+	return name == "log/slog.Group" || name == "log/slog.GroupAttrs"
+}

@@ -12,8 +12,8 @@ func noMixedArguments(pass *analysis.Pass, keys, attrs []ast.Expr) {
 		return
 	}
 	for _, attr := range attrs {
-		if call, ok := attr.(*ast.CallExpr); ok && funcName(pass.TypesInfo, call) == "log/slog.Group" {
-			continue // Special case: slog.Group() should always be allowed.
+		if isGroup(pass.TypesInfo, attr) {
+			continue // Special case: slog.Group/GroupAttrs should always be allowed.
 		}
 		pass.ReportRangef(attr, "key-value pairs and attributes should not be mixed")
 		return
@@ -22,8 +22,8 @@ func noMixedArguments(pass *analysis.Pass, keys, attrs []ast.Expr) {
 
 func keyValuePairsOnly(pass *analysis.Pass, attrs []ast.Expr) {
 	for _, attr := range attrs {
-		if call, ok := attr.(*ast.CallExpr); ok && funcName(pass.TypesInfo, call) == "log/slog.Group" {
-			continue // Special case: slog.Group() should always be allowed.
+		if isGroup(pass.TypesInfo, attr) {
+			continue // Special case: slog.Group/GroupAttrs should always be allowed.
 		}
 		pass.ReportRangef(attr, "attributes should not be used")
 		return

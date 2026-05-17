@@ -10,8 +10,8 @@ func customLog(msg string, args ...any)
 func _(ctx context.Context, logger *slog.Logger, args ...any) {
 	slog.Info("msg", args...)
 	slog.Info("msg", "foo", 1, "bar", 2)
-	slog.Info("msg", "foo", 1, slog.Int("bar", 2)) // want `key-value pairs and attributes should not be mixed`
 	slog.Info("msg", "foo", 1, slog.Group("group"))
+	slog.Info("msg", "foo", 1, slog.GroupAttrs("group"))
 	slog.Info("msg", slog.Int("foo", 1), slog.Int("bar", 2))
 
 	slog.Log(ctx, slog.LevelInfo, "msg", "foo", 1, slog.Int("bar", 2)) // want `key-value pairs and attributes should not be mixed`
