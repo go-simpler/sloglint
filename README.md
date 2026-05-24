@@ -156,6 +156,8 @@ linters:
       kv-only: true
 ```
 
+Additionally, this check suggests using `...any` functions instead of their `...Attr` alternatives.
+
 ### Attributes only
 
 Report any use of key-value pairs as function call arguments.
@@ -172,6 +174,8 @@ linters:
     sloglint:
       attr-only: true
 ```
+
+Additionally, this check suggests using `...Attr` functions instead of their `...any` alternatives.
 
 ### Arguments on separate lines
 
