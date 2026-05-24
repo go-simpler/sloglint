@@ -42,7 +42,18 @@ func keyValuePairsOnly(pass *analysis.Pass, call *ast.CallExpr, attrs []ast.Expr
 	}
 }
 
-func attributesOnly(pass *analysis.Pass, keys []ast.Expr) {
+func attributesOnly(pass *analysis.Pass, call *ast.CallExpr, keys []ast.Expr) {
+	fnName := typeutil.StaticCallee(pass.TypesInfo, call).FullName()
+
+	if replacement, ok := map[string]string{
+		"log/slog.Group":         "slog.GroupAttrs",
+		"log/slog.Log":           "slog.LogAttrs",
+		"(*log/slog.Logger).Log": "slog.Logger.LogAttrs",
+	}[fnName]; ok {
+		pass.ReportRangef(call, "use %s with attributes instead", replacement)
+		return
+	}
+
 	for _, key := range keys {
 		pass.ReportRangef(key, "key-value pairs should not be used")
 		return
