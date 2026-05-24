@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 func noMixedArguments(pass *analysis.Pass, keys, attrs []ast.Expr) {
@@ -20,10 +21,21 @@ func noMixedArguments(pass *analysis.Pass, keys, attrs []ast.Expr) {
 	}
 }
 
-func keyValuePairsOnly(pass *analysis.Pass, attrs []ast.Expr) {
+func keyValuePairsOnly(pass *analysis.Pass, call *ast.CallExpr, attrs []ast.Expr) {
+	fnName := typeutil.StaticCallee(pass.TypesInfo, call).FullName()
+
+	if replacement, ok := map[string]string{
+		"log/slog.GroupAttrs":         "slog.Group",
+		"log/slog.LogAttrs":           "slog.Log",
+		"(*log/slog.Logger).LogAttrs": "slog.Logger.Log",
+	}[fnName]; ok {
+		pass.ReportRangef(call, "use %s with key-value pairs instead", replacement)
+		return
+	}
+
 	for _, attr := range attrs {
 		if isGroup(pass.TypesInfo, attr) {
-			continue // Special case: slog.Group/GroupAttrs should always be allowed.
+			continue // Special case: slog.Group should always be allowed.
 		}
 		pass.ReportRangef(attr, "attributes should not be used")
 		return

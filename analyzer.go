@@ -70,6 +70,7 @@ var slogFuncs = []Func{
 
 func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 	node := cursor.Node()
+
 	if cl, ok := node.(*ast.CompositeLit); ok && typeName(pass.TypesInfo, cl) == "log/slog.Attr" {
 		analyzeAttrKey(pass, opts, cl)
 		return
@@ -117,7 +118,7 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		analyzeMessage(pass, opts, call.Args[pos])
 	}
 	if pos := funcs[idx].ArgumentsPos; pos >= 0 && len(call.Args) > pos {
-		analyzeArguments(pass, opts, call.Args[pos:])
+		analyzeArguments(pass, opts, call, call.Args[pos:])
 	}
 }
 
@@ -143,7 +144,7 @@ func analyzeMessage(pass *analysis.Pass, opts *Options, msg ast.Expr) {
 	}
 }
 
-func analyzeArguments(pass *analysis.Pass, opts *Options, args []ast.Expr) {
+func analyzeArguments(pass *analysis.Pass, opts *Options, call *ast.CallExpr, args []ast.Expr) {
 	var keys, attrs []ast.Expr
 
 	for i := 0; i < len(args); i++ {
@@ -167,7 +168,7 @@ func analyzeArguments(pass *analysis.Pass, opts *Options, args []ast.Expr) {
 		noMixedArguments(pass, keys, attrs)
 	}
 	if opts.KeyValuePairsOnly {
-		keyValuePairsOnly(pass, attrs)
+		keyValuePairsOnly(pass, call, attrs)
 	}
 	if opts.AttributesOnly {
 		attributesOnly(pass, keys)
