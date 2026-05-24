@@ -111,7 +111,7 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		return
 	}
 
-	if idx < len(slogFuncs) {
+	if standard := idx < len(slogFuncs); standard {
 		analyzeFunction(pass, opts, call, cursor)
 	}
 	if pos := funcs[idx].MessagePos; pos >= 0 && len(call.Args) > pos {
