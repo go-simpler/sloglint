@@ -171,7 +171,7 @@ func analyzeArguments(pass *analysis.Pass, opts *Options, call *ast.CallExpr, ar
 		keyValuePairsOnly(pass, call, attrs)
 	}
 	if opts.AttributesOnly {
-		attributesOnly(pass, keys)
+		attributesOnly(pass, call, keys)
 	}
 	if opts.ArgumentsOnSeparateLines {
 		argumentsOnSeparateLines(pass, keys, attrs)
