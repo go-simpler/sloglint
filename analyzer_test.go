@@ -15,6 +15,19 @@ func TestAnalyzer(t *testing.T) {
 		dir  string
 		opts Options
 	}{
+		"function names": {
+			dir: "function_names",
+			opts: Options{
+				StaticMessage: true,
+				ConstantKeys:  true,
+				CustomFuncs: []Func{
+					{FullName: "function_names.custom", MessagePos: 0, ArgumentsPos: 1},
+					{FullName: "function_names.custom", MessagePos: -1, ArgumentsPos: -1},
+					{FullName: "(*function_names.Logger).Info", MessagePos: 0, ArgumentsPos: 1},
+					{FullName: "log/slog.Info", MessagePos: -1, ArgumentsPos: -1},
+				},
+			},
+		},
 		"no global logger (all)":      {dir: "no_global_all", opts: Options{NoGlobalLogger: noGlobalLoggerAll}},
 		"no global logger (default)":  {dir: "no_global_default", opts: Options{NoGlobalLogger: noGlobalLoggerDefault}},
 		"context only (all)":          {dir: "context_only_all", opts: Options{ContextOnly: contextOnlyAll}},
