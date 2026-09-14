@@ -86,7 +86,8 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		return
 	}
 
-	switch fn.FullName() {
+	name := fn.FullName()
+	switch name {
 	case "log/slog.Int",
 		"log/slog.Int64",
 		"log/slog.Uint64",
@@ -105,7 +106,7 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 
 	funcs := slices.Concat(slogFuncs, opts.CustomFuncs)
 	idx := slices.IndexFunc(funcs, func(f Func) bool {
-		return f.FullName == fn.FullName()
+		return f.FullName == name
 	})
 	if idx == -1 {
 		return
