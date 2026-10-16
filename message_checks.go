@@ -1,6 +1,7 @@
 package sloglint
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -77,5 +78,23 @@ func messageStyle(pass *analysis.Pass, msg ast.Expr, style string) {
 		}
 	}
 
-	pass.ReportRangef(msg, "message should be %s", style)
+	caseFn := unicode.ToLower
+	if style == messageStyleCapitalized {
+		caseFn = unicode.ToUpper
+	}
+
+	fixed := strings.Replace(s, string(first), string(caseFn(first)), 1)
+
+	pass.Report(analysis.Diagnostic{
+		Pos:     msg.Pos(),
+		End:     msg.End(),
+		Message: fmt.Sprintf("message should be %s", style),
+		SuggestedFixes: []analysis.SuggestedFix{{
+			TextEdits: []analysis.TextEdit{{
+				Pos:     lit.Pos(),
+				End:     lit.End(),
+				NewText: strconv.AppendQuote(nil, fixed),
+			}},
+		}},
+	})
 }

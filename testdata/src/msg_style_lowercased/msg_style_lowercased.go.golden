@@ -1,0 +1,19 @@
+package msg_style_lowercased
+
+import "log/slog"
+
+func _() {
+	slog.Info("")
+	slog.Info("msg")
+	slog.Info("msg")         // want `message should be lowercased`
+	slog.Info(" msg")        // want `message should be lowercased`
+	slog.Info("\tmsg")       // want `message should be lowercased`
+	slog.Info("msg")         // want `message should be lowercased`
+	slog.Info("msg")         // want `message should be lowercased`
+	slog.Info("ünicode msg") // want `message should be lowercased`
+
+	// Special cases:
+	slog.Info("200 OK")
+	slog.Info("U.S.")
+	slog.Info("HTTP")
+}
