@@ -114,6 +114,7 @@ linters:
 
 Report log messages that do not match a particular style.
 The supported styles are `lowercased` (the first letter is lowercase) and `capitalized` (the first letter is uppercase).
+This check supports autofix.
 
 ```go
 slog.Info("A user has logged in")
