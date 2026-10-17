@@ -258,6 +258,7 @@ linters:
 
 Report log keys that do not match a particular naming case.
 The supported cases are `snake_case`, `kebab-case`, `camelCase`, and `PascalCase`.
+Dot-separated namespaced keys (e.g. OpenTelemetry semantic conventions like `http.status_code`) are supported, validating each segment individually against the configured case.
 
 ```go
 slog.Info("a user has logged in", "user-id", 42)
