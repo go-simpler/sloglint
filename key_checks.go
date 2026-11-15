@@ -6,6 +6,7 @@ import (
 	"go/types"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/ettle/strcase"
 	"golang.org/x/tools/go/analysis"
@@ -36,9 +37,60 @@ func forbiddenKeys(pass *analysis.Pass, key ast.Expr, forbidden []string) {
 	}
 }
 
+func checkKeyCase(name string, caseName string) (string, bool) {
+	if name == "" {
+		return "", true
+	}
+
+	var caseFn func(string) string
+	switch caseName {
+	case keyNamingCaseSnake:
+		caseFn = strcase.ToSnake
+	case keyNamingCaseKebab:
+		caseFn = strcase.ToKebab
+	case keyNamingCaseCamel:
+		caseFn = strcase.ToCamel
+	case keyNamingCasePascal:
+		caseFn = strcase.ToPascal
+	}
+
+	segments := strings.Split(name, ".")
+	valid := true
+	var fixedSegments []string
+	for _, segment := range segments {
+		if segment == "" {
+			valid = false
+			continue
+		}
+		fixedSegment := caseFn(segment)
+		if segment != fixedSegment {
+			valid = false
+		}
+		if fixedSegment != "" {
+			fixedSegments = append(fixedSegments, fixedSegment)
+		}
+	}
+
+	if valid {
+		return "", true
+	}
+
+	fixed := strings.Join(fixedSegments, ".")
+	if fixed == "" {
+		fixed = caseFn(name)
+	}
+
+	return fixed, false
+}
+
 func keyNamingCase(pass *analysis.Pass, key ast.Expr, caseName string) {
 	name, ok := keyName(key)
 	if !ok {
+		return
+	}
+
+	fixed, match := checkKeyCase(name, caseName)
+	if match {
 		return
 	}
 
@@ -54,10 +106,6 @@ func keyNamingCase(pass *analysis.Pass, key ast.Expr, caseName string) {
 		caseFn = strcase.ToPascal
 	}
 
-	if name == caseFn(name) {
-		return
-	}
-
 	pass.Report(analysis.Diagnostic{
 		Pos:     key.Pos(),
 		End:     key.End(),
@@ -66,7 +114,7 @@ func keyNamingCase(pass *analysis.Pass, key ast.Expr, caseName string) {
 			TextEdits: []analysis.TextEdit{{
 				Pos:     key.Pos(),
 				End:     key.End(),
-				NewText: strconv.AppendQuote(nil, caseFn(name)),
+				NewText: strconv.AppendQuote(nil, fixed),
 			}},
 		}},
 	})
