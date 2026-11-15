@@ -87,6 +87,7 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 	}
 
 	name := fn.FullName()
+
 	switch name {
 	case "log/slog.Int",
 		"log/slog.Int64",
