@@ -5,7 +5,8 @@ import "log/slog"
 func _() {
 	slog.Info("")
 	slog.Info("msg")
-	slog.Info("Msg") // want `message should be lowercased`
+	slog.Info("Msg")  // want `message should be lowercased`
+	slog.Info(" Msg") // want `message should be lowercased`
 
 	// Special cases:
 	slog.Info("200 OK")
