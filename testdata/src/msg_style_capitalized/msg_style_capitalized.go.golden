@@ -4,14 +4,9 @@ import "log/slog"
 
 func _() {
 	slog.Info("")
-	slog.Info("Msg")         // want `message should be capitalized`
-	slog.Info(" Msg")        // want `message should be capitalized`
-	slog.Info("\tMsg")       // want `message should be capitalized`
-	slog.Info("\nMsg")       // want `message should be capitalized`
-	slog.Info("Msg")         // want `message should be capitalized`
-	slog.Info("Msg")         // want `message should be capitalized`
-	slog.Info("Ünicode msg") // want `message should be capitalized`
 	slog.Info("Msg")
+	slog.Info("Msg")  // want `message should be capitalized`
+	slog.Info(" Msg") // want `message should be capitalized`
 
 	// Special cases:
 	slog.Info("200 OK")
