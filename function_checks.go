@@ -3,6 +3,7 @@ package sloglint
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/inspector"
@@ -31,8 +32,15 @@ func noGlobalLogger(pass *analysis.Pass, call *ast.CallExpr, defaultOnly bool) {
 		return
 	}
 
-	if ident.Name == "slog" {
-		pass.ReportRangef(sel.X, "default logger should not be used")
+	obj := pass.TypesInfo.ObjectOf(ident)
+
+	// The default logger is used via the log/slog package. Check the package
+	// itself instead of the identifier name: a local logger may be named "slog",
+	// and the package may be imported under an alias.
+	if pkg, ok := obj.(*types.PkgName); ok {
+		if pkg.Imported().Path() == "log/slog" {
+			pass.ReportRangef(sel.X, "default logger should not be used")
+		}
 		return
 	}
 
@@ -40,7 +48,7 @@ func noGlobalLogger(pass *analysis.Pass, call *ast.CallExpr, defaultOnly bool) {
 		return
 	}
 
-	if obj := pass.TypesInfo.ObjectOf(ident); obj != nil && obj.Parent() == obj.Pkg().Scope() {
+	if obj != nil && obj.Pkg() != nil && obj.Parent() == obj.Pkg().Scope() {
 		pass.ReportRangef(sel.X, "global logger should not be used")
 	}
 }
