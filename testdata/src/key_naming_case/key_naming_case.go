@@ -1,6 +1,10 @@
 package key_naming_case
 
-import "log/slog"
+import (
+	"log/slog"
+
+	"key_naming_case/keys"
+)
 
 const (
 	snakeKey = "foo_bar"
@@ -17,4 +21,6 @@ func _() {
 	slog.Info("msg", kebabKey, 1)            // want `keys should be written in snake_case`
 	slog.Info("msg", slog.Int("foo-bar", 1)) // want `keys should be written in snake_case`
 	slog.Info("msg", slog.Int(kebabKey, 1))  // want `keys should be written in snake_case`
+	slog.Info("msg", fileKebabKey, 1)        // want `keys should be written in snake_case`
+	slog.Info("msg", keys.KebabKey, 1)       // want `keys should be written in snake_case`
 }

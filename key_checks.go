@@ -20,24 +20,24 @@ func constantKeys(pass *analysis.Pass, key ast.Expr) {
 			return
 		}
 	}
-	name, _ := keyName(key)
+	name, _ := keyName(pass.TypesInfo, key)
 	pass.ReportRangef(key, "the %q key should be a constant", name)
 }
 
 func allowedKeys(pass *analysis.Pass, key ast.Expr, allowed []string) {
-	if name, ok := keyName(key); ok && !slices.Contains(allowed, name) {
+	if name, ok := keyName(pass.TypesInfo, key); ok && !slices.Contains(allowed, name) {
 		pass.ReportRangef(key, "the %q key is not allowed and should not be used", name)
 	}
 }
 
 func forbiddenKeys(pass *analysis.Pass, key ast.Expr, forbidden []string) {
-	if name, ok := keyName(key); ok && slices.Contains(forbidden, name) {
+	if name, ok := keyName(pass.TypesInfo, key); ok && slices.Contains(forbidden, name) {
 		pass.ReportRangef(key, "the %q key is forbidden and should not be used", name)
 	}
 }
 
 func keyNamingCase(pass *analysis.Pass, key ast.Expr, caseName string) {
-	name, ok := keyName(key)
+	name, ok := keyName(pass.TypesInfo, key)
 	if !ok {
 		return
 	}
