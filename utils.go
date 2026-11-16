@@ -2,6 +2,7 @@ package sloglint
 
 import (
 	"go/ast"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"strconv"
@@ -23,27 +24,45 @@ func funcName(info *types.Info, call *ast.CallExpr) string {
 	return ""
 }
 
-func keyName(key ast.Expr) (string, bool) {
-	if ident, ok := key.(*ast.Ident); ok {
-		if ident.Obj == nil || ident.Obj.Decl == nil || ident.Obj.Kind != ast.Con {
-			return "", false
-		}
-		if spec, ok := ident.Obj.Decl.(*ast.ValueSpec); ok && len(spec.Values) > 0 {
-			key = spec.Values[0] // TODO: Support len(spec.Values) > 1; e.g. const foo, bar = 1, 2.
-		}
+// keyName returns the string value of the given key.
+// The key must be a string literal or a constant, including constants declared
+// in another file or package.
+func keyName(info *types.Info, key ast.Expr) (string, bool) {
+	if sel, ok := key.(*ast.SelectorExpr); ok {
+		key = sel.Sel // The key is defined in another package, e.g. pkg.ConstKey.
 	}
 
-	lit, ok := key.(*ast.BasicLit)
-	if !ok || lit.Kind != token.STRING {
+	if lit, ok := key.(*ast.BasicLit); ok {
+		if lit.Kind != token.STRING {
+			return "", false
+		}
+
+		name, err := strconv.Unquote(lit.Value)
+		if err != nil {
+			panic("unreachable") // String literals are always quoted.
+		}
+
+		return name, true
+	}
+
+	// The key is a constant, e.g. constKey. Unlike ast.Ident.Obj, go/types
+	// resolves constants declared in another file or package.
+	ident, ok := key.(*ast.Ident)
+	if !ok {
 		return "", false
 	}
 
-	name, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		panic("unreachable") // String literals are always quoted.
+	obj, ok := info.ObjectOf(ident).(*types.Const)
+	if !ok {
+		return "", false
 	}
 
-	return name, true
+	value := obj.Val()
+	if value.Kind() != constant.String {
+		return "", false
+	}
+
+	return constant.StringVal(value), true
 }
 
 func isGroup(info *types.Info, expr ast.Expr) bool {
