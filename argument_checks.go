@@ -2,7 +2,6 @@ package sloglint
 
 import (
 	"go/ast"
-	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/types/typeutil"
@@ -60,8 +59,9 @@ func attributesOnly(pass *analysis.Pass, call *ast.CallExpr, keys []ast.Expr) {
 	}
 }
 
-func argumentsOnSeparateLines(pass *analysis.Pass, keys, attrs []ast.Expr) {
-	args := slices.Concat(keys, attrs)
+// argumentsOnSeparateLines reports the first pair of arguments that share a
+// line. The args slice contains one expression per argument, in source order.
+func argumentsOnSeparateLines(pass *analysis.Pass, args []ast.Expr) {
 	if len(args) <= 1 {
 		return // Special case: slog.Info("msg", "key", "value") is fine.
 	}
