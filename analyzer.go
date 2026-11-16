@@ -148,6 +148,7 @@ func analyzeMessage(pass *analysis.Pass, opts *Options, msg ast.Expr) {
 
 func analyzeArguments(pass *analysis.Pass, opts *Options, call *ast.CallExpr, args []ast.Expr) {
 	var keys, attrs []ast.Expr
+	var exprs []ast.Expr // One expression per argument, in source order.
 
 	for i := 0; i < len(args); i++ {
 		typ := pass.TypesInfo.TypeOf(args[i])
@@ -157,10 +158,12 @@ func analyzeArguments(pass *analysis.Pass, opts *Options, call *ast.CallExpr, ar
 		switch typ.String() {
 		case "string":
 			keys = append(keys, args[i])
+			exprs = append(exprs, args[i])
 			analyzeKey(pass, opts, args[i])
 			i++ // Skip the value.
 		case "log/slog.Attr":
 			attrs = append(attrs, args[i])
+			exprs = append(exprs, args[i])
 		case "[]any", "[]log/slog.Attr":
 			continue // The last argument may be an unpacked slice, skip it.
 		}
@@ -176,7 +179,7 @@ func analyzeArguments(pass *analysis.Pass, opts *Options, call *ast.CallExpr, ar
 		attributesOnly(pass, call, keys)
 	}
 	if opts.ArgumentsOnSeparateLines {
-		argumentsOnSeparateLines(pass, keys, attrs)
+		argumentsOnSeparateLines(pass, exprs)
 	}
 }
 
