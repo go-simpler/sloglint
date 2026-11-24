@@ -37,7 +37,7 @@ func forbiddenKeys(pass *analysis.Pass, key ast.Expr, forbidden []string) {
 	}
 }
 
-func checkKeyCase(name string, caseName string) (string, bool) {
+func checkKeyCase(name, caseName string) (string, bool) {
 	if name == "" {
 		return "", true
 	}
