@@ -25,3 +25,14 @@ func TestOptions_validate(t *testing.T) {
 		})
 	}
 }
+
+func TestPreferTypedAttributesFlag(t *testing.T) {
+	opts := &Options{}
+	fs := flags(opts)
+	if err := fs.Parse([]string{"-prefer-typed-attrs"}); err != nil {
+		t.Fatal(err)
+	}
+	if !opts.PreferTypedAttributes {
+		t.Error("the -prefer-typed-attrs flag did not enable PreferTypedAttributes")
+	}
+}

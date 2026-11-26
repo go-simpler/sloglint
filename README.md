@@ -36,6 +36,9 @@ For log arguments:
 - [Attributes only](#attributes-only)
 - [Arguments on separate lines](#arguments-on-separate-lines)
 
+For attributes:
+- [Typed attributes](#typed-attributes)
+
 For log keys:
 - [Constant keys](#constant-keys)
 - [Allowed keys](#allowed-keys)
@@ -195,6 +198,24 @@ linters:
     sloglint:
       args-on-sep-lines: true
 ```
+
+### Typed attributes
+
+Suggest type-specific constructors for `slog.Any` when the value's type is
+`string`, `int`, `int64`, `uint64`, `float64`, `bool`,
+`time.Duration`, or `time.Time`. Type aliases are also supported.
+Other named types and interface values are left unchanged because they may have
+different logging behavior.
+
+```go
+slog.Any("user_id", 42)
+// sloglint: use slog.Int instead of slog.Any
+```
+
+This check is disabled by default. Enable it with `-prefer-typed-attrs` in
+the standalone tool, or set `Options.PreferTypedAttributes` when embedding
+the analyzer. It supports autofix for qualified calls, including aliased
+imports. Calls using a dot import are reported without an autofix.
 
 ### Constant keys
 

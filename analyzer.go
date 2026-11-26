@@ -96,9 +96,14 @@ func analyzeNode(pass *analysis.Pass, opts *Options, cursor inspector.Cursor) {
 		"log/slog.String",
 		"log/slog.Bool",
 		"log/slog.Time",
-		"log/slog.Duration",
-		"log/slog.Any":
+		"log/slog.Duration":
 		analyzeKey(pass, opts, call.Args[0])
+		return
+	case "log/slog.Any":
+		analyzeKey(pass, opts, call.Args[0])
+		if opts.PreferTypedAttributes {
+			preferTypedAttribute(pass, call)
+		}
 		return
 	case "log/slog.Group", "log/slog.GroupAttrs":
 		analyzeKey(pass, opts, call.Args[0])

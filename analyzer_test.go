@@ -20,6 +20,8 @@ func TestAnalyzer(t *testing.T) {
 		"context only (all)":          {dir: "context_only_all", opts: Options{ContextOnly: contextOnlyAll}},
 		"context only (scope)":        {dir: "context_only_scope", opts: Options{ContextOnly: contextOnlyScope}},
 		"discard handler":             {dir: "discard_handler", opts: Options{}},
+		"typed attributes":            {dir: "typed_attributes", opts: Options{PreferTypedAttributes: true}},
+		"typed attributes disabled":   {dir: "typed_attributes_disabled", opts: Options{}},
 		"static message":              {dir: "static_msg", opts: Options{StaticMessage: true}},
 		"message style (lowercased)":  {dir: "msg_style_lowercased", opts: Options{MessageStyle: messageStyleLowercased}},
 		"message style (capitalized)": {dir: "msg_style_capitalized", opts: Options{MessageStyle: messageStyleCapitalized}},
