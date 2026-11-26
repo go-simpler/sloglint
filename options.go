@@ -41,6 +41,9 @@ type Options struct {
 	// Report two or more arguments on the same line.
 	ArgumentsOnSeparateLines bool
 
+	// Report uses of slog.Any that have an equivalent type-specific constructor.
+	PreferTypedAttributes bool
+
 	// Report the use of string literals as log keys.
 	ConstantKeys bool
 	// Report the use of log keys that are not explicitly allowed.
@@ -135,6 +138,7 @@ func flags(opts *Options) flag.FlagSet {
 	fs.BoolVar(&opts.KeyValuePairsOnly, "kv-only", opts.KeyValuePairsOnly, `report any use of attributes as function call arguments`)
 	fs.BoolVar(&opts.AttributesOnly, "attr-only", opts.AttributesOnly, `report any use of key-value pairs as function call arguments`)
 	fs.BoolVar(&opts.ArgumentsOnSeparateLines, "args-on-sep-lines", opts.ArgumentsOnSeparateLines, `report two or more arguments on the same line`)
+	fs.BoolVar(&opts.PreferTypedAttributes, "prefer-typed-attrs", opts.PreferTypedAttributes, `report uses of slog.Any that have an equivalent type-specific constructor`)
 	fs.BoolVar(&opts.ConstantKeys, "const-keys", opts.ConstantKeys, `report the use of string literal as log keys`)
 	listVar(&opts.AllowedKeys, "allowed-keys", `report the use of log keys that are not explicitly allowed`)
 	listVar(&opts.ForbiddenKeys, "forbidden-keys", `report the use of forbidden log keys`)
